@@ -1,9 +1,9 @@
-TRUE AUTO STATS (TAS) FOR AI DUNGEON RPG SCENARIOS
-By Yi1i1i
+## TRUE AUTO STATS (TAS) FOR AI DUNGEON RPG SCENARIOS
+## By Yi1i1i
 
 Current AI models fail to accurately keep track of stats and have a hard time interpreting quantity in regards to numbers which forces players to manually create their own stats and update them. This is tedious and reduces immersion.
 
-TAS aims to...
+## TAS aims to...
 
 Create and automatically update the player's stats according to the user's input and the AI's output.
 
@@ -16,7 +16,7 @@ Reduce the need for strict or unnatural command formats which pollutes AI contex
 Provide a limit to the player's omniscient power.
 
 
-List of Features
+## List of Features
 
 Start and stop script command.
 
@@ -43,11 +43,12 @@ Disclaimer: Script may not always perform accurately due to the limits of natura
 Feel free to leave any feedback or comments, thank you!
 
 
-How to install:
+## How to install:
 Plug and Play! Copy and paste each script to their respective hooks in AIDungeon Script Editor.
 
 
-Links:
+## Links:
+
 AID Discord: https://discord.gg/VJXwe7bj3A
 
 Yi1i1i AID Profile: https://play.aidungeon.com/profile/Yi1i1i?contentType=scenario
