@@ -37,7 +37,7 @@ function onInput_TAS(text) {
   //Check for locking
   text = lockScript(text);
 
-  helpCommandInput(text);
+  helpCommandInput_TAS(text);
 
   //Unlocking runs main()
   if (state.startScript == true && info.actionCount >= 0) {
@@ -57,7 +57,6 @@ function onInput_TAS(text) {
     retrieveSkillsFromSC();
     retrieveInvFromSC();
     retrieveModifiersFromSC()
-
 
     text = detectStoreInv(text);
 
@@ -93,7 +92,7 @@ function onContext_TAS(text){
 
 // OUTPUT HOOK
 function onOutput_TAS(text) {
-  text = helpCommandOutput(text);
+  text = helpCommandOutput_TAS(text);
 
   //start of main()
   if (state.startScript == true && info.actionCount >= 0) {
@@ -169,9 +168,9 @@ function lockScript(key){
 }
 
 //detect /help and display help
-function helpCommandInput(text){
+function helpCommandInput_TAS(text){
   if(text.includes("/help stats")){
-    state.commandCenter = 
+    state.commandCenter_TAS = 
     `📊 Player Stats Guide
 
     - 📥 Type "Player Stats" in the Story Cards to view your current stats.
@@ -196,7 +195,7 @@ function helpCommandInput(text){
     - 🍀 Each point in LCK gives a 1% chance of a lucky boost.`
   }
   else if(text.includes("/help talents")){
-    state.commandCenter = 
+    state.commandCenter_TAS = 
     `🎯 Talent System Guide
 
     - 🧠 Talents represent your character's aptitudes (e.g., Cooking, Lockpicking, Fishing).
@@ -211,7 +210,7 @@ function helpCommandInput(text){
     - 📈 Using talents levels them up. Progress is also tracked in the Story Card.`
   }
   else if(text.includes("/help skills")){
-    state.commandCenter = 
+    state.commandCenter_TAS = 
     `🎯 Skills System Guide
 
     - 🪄 Skills require mana points (MP) to use. Example: Fireball.
@@ -222,7 +221,7 @@ function helpCommandInput(text){
     - 💥 Skill power increases every 10 levels.`
   }
   else if (text.includes("/help inventory")) {
-  state.commandCenter = 
+  state.commandCenter_TAS = 
   `📦 Inventory Help
 
   - Store items by typing: "You [store words]... [item name]... [inventory words]."
@@ -230,7 +229,7 @@ function helpCommandInput(text){
   - Edit your inventory in the story card using the format: "Item Name (Amt)".`
   }
   else if (text.includes("/help actions")) {
-    state.commandCenter = 
+    state.commandCenter_TAS = 
     `🎬 Action System Help
 
     - Item, talent, and skill usage requires name matching (exact or partial).
@@ -250,7 +249,7 @@ function helpCommandInput(text){
       • Scouting Format: "You [scout words]."`
   }
   else if (text.includes("/help")) {
-    state.commandCenter = 
+    state.commandCenter_TAS = 
     `🛠️ Script Commands
 
     - Be sure to delete helper texts to avoid polluting the AI context.
@@ -264,11 +263,11 @@ function helpCommandInput(text){
   }
 }
 
-function helpCommandOutput(text){
-  if(state.commandCenter){
-    text = state.commandCenter;
+function helpCommandOutput_TAS(text){
+  if(state.commandCenter_TAS){
+    text = state.commandCenter_TAS;
   }
-  delete state.commandCenter
+  delete state.commandCenter_TAS
   return text;
 }
 
@@ -2528,9 +2527,9 @@ function retrieveStatsFromSC(){
   log(state.playerStats);
 }
 
-//Function to increment the player's stats
+// Function to increment the player's stats
 function statUp(statName,incAmt){
-  //Ensure incAmt is a number
+  // Ensure incAmt is a number
   if(typeof incAmt !== "number"){
     incAmt = 0;
   }
@@ -2560,7 +2559,7 @@ function statUp(statName,incAmt){
   stat = state.playerStats[statName];
   log("stat: " + stat);
 
-  //Extra hp,mp,ep cant lvl up player, simply increment available value
+  // Exception: Extra hp,mp,ep shouldnt lvl up player, simply increment available value
   if(statName == "hp" || statName == "mp" || statName == "ep"){
     state.playerStats[statName] += incAmt;
 
@@ -2600,7 +2599,7 @@ function statUp(statName,incAmt){
     overflow = Math.round(overflow * 100) / 100;
     log("overflow: " + overflow);
 
-    //Fix stat to not pass maxstat
+    // Fix stat to not pass maxstat
     if(state.playerStats[statName] > state.playerStats[maxStatName]){
       state.playerStats[statName] = state.playerStats[maxStatName];
     };
@@ -2611,13 +2610,13 @@ function statUp(statName,incAmt){
     if (incAmt < 0) { sign = "🔻" }
     statSC.description = `Log ${state.turnCount} | ${statName.toUpperCase()} ${sign} :  ${stat} → ${state.playerStats[statName]} (Scaled: ${scaledIncAmt}, Modded: ${incAmt}, Raw: ${preModIncAmt})\n` + statSC.description;
 
-    //If there is positive overflow, pass it to player EXP
+    //If there is positive stat overflow, pass it to player EXP
     if(overflow > 0){
       // Get current max level
       level = state.playerStats.maxLvl;
       log("level: " + level);
 
-      //Scale overflow and add to EXP (Must scale overflow to account when player is high level but has a low stat which will overflow too much to EXP)
+      // Scale overflow and add to EXP (Must scale overflow to account when player is high level but has a low stat which will overflow too much to EXP)
       state.playerStats.exp = state.playerStats.exp + (100 * overflow * (1.32 * Math.exp(-0.02 * level)));
 
       // Round to two decimal places
@@ -2626,7 +2625,7 @@ function statUp(statName,incAmt){
       
       //When maxEXP is reached, increment plr level and reset EXP to 0
       if(state.playerStats.exp >= state.playerStats.maxExp){
-        // Calculate amt of times to increment lvl
+        // Calculate amt of times to increment LVL based on EXP
         lvlIncrement = Math.floor(state.playerStats.exp/state.playerStats.maxExp);
         log("lvlIncrement: " + lvlIncrement);
 
