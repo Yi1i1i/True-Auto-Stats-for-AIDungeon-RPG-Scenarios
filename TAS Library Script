@@ -202,7 +202,7 @@ function helpCommandInput_TAS(text){
     - ⚡ Talents consume energy points (EP) when used.
     - ✨ Casting a talent transforms it into a skill, which uses mana (MP) instead.
     - 📝 Edit talents in the Story Card using the format: "Talent Name (Lvl) (Ep)".
-    - 📚 Learn a talent by studying it and using its name repeatedly over a few turns.
+    - 📚 Learn a talent by studying it and using its name repeatedly over a few turns. Ex: You [study word] Fireball.
     - 🔤 Capitalized first-letter talent names are learned faster.
     - 🧪 The system filters common words intelligently when detecting talent names.
     - 🎓 Learning talents grants INTL experience.
