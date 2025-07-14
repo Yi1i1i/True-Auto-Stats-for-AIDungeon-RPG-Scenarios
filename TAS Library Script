@@ -250,7 +250,8 @@ function helpCommandInput_TAS(text){
   }
   else if (text.includes("/help")) {
     state.commandCenter_TAS = 
-    `🛠️ Script Commands
+    ` TRUE AUTO STATS RPG SCRIPT BY Yi1i1i
+    🛠️ Script Commands
 
     - Be sure to delete helper texts to avoid polluting the AI context.
     - /start — Starts the script
