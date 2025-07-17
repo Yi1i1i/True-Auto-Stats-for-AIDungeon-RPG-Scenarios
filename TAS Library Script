@@ -94,7 +94,7 @@ function onContext_TAS(text){
 function onOutput_TAS(text) {
   text = helpCommandOutput_TAS(text);
 
-  //start of main()
+  // start of main()
   if (state.startScript == true && info.actionCount >= 0) {
     state.outputCount += 1;
     log("state.outputCount: " + state.outputCount);
@@ -105,7 +105,6 @@ function onOutput_TAS(text) {
     createIfNoTalentSC();
     createIfNoSkillSC();
     createIfNoModifierSC();
-
 
     //End of skill learning process. Do not disturb talent storage beforehand.
     text = getEnergyCost(text);
@@ -138,137 +137,8 @@ function onOutput_TAS(text) {
     //Final mods store back to SC in correct formatting
     storeModifiersToSC();
 
-
     turnCounter();
-
   }//end of main()
-  return text;
-}
-
-//Input /start unlocks the script else script naturally locked
-function unlockScript(key){ 
-  if (state.startScript == false) {
-    if (key.includes("/start")) {
-      state.startScript = true;
-      text = text + "\n 🔓 TAS Script Unlocked!";
-    }
-  }
-  return text;
-}
-
-//Detect input command /end to lock script
-function lockScript(key){ 
-  if (state.startScript == true) {
-    if (key.includes("/end")) {
-      state.startScript = false;
-      text = text + "\n 🔒 TAS Script Locked!"
-    }
-  }
-  return text;
-}
-
-//detect /help and display help
-function helpCommandInput_TAS(text){
-  if(text.includes("/help stats")){
-    state.commandCenter_TAS = 
-    `📊 Player Stats Guide
-
-    - 📥 Type "Player Stats" in the Story Cards to view your current stats.
-    - 🔄 Stats auto-update based on natural player input and context.
-    - ✏️ To manually adjust a stat, use the format: STAT: x/maxX.
-    - 🗒️ Stat change logs appear in the notes of the Player Stats Story Card.
-
-    🧠 Gameplay Mechanics
-
-    - ❤️ Health and 🔵 Mana regenerate every turn.
-    - ⚡ Energy decreases every turn.
-    - ⚠️ Low Health or Energy leads to consequences.
-    - 📈 Stats used in actions gain exp. Experience scales exponentially lower as your stats increase.
-    - 🎓 When a stat is maxed, overflow EXP goes to your main EXP pool.
-    - 🆙 Leveling up increases all max stats.
-
-    📐 Scaling & Calculations
-
-    - 🧠 Mana scales with INTL.
-    - 🛡️ X DEF = X/2 % damage reduction.
-    - ➕ DEF above 100 reduces damage by an extra 0.01% per 10 points.
-    - 🍀 Each point in LCK gives a 1% chance of a lucky boost.`
-  }
-  else if(text.includes("/help talents")){
-    state.commandCenter_TAS = 
-    `🎯 Talent System Guide
-
-    - 🧠 Talents represent your character's aptitudes (e.g., Cooking, Lockpicking, Fishing).
-    - ⚡ Talents consume energy points (EP) when used.
-    - ✨ Casting a talent transforms it into a skill, which uses mana (MP) instead.
-    - 📝 Edit talents in the Story Card using the format: "Talent Name (Lvl) (Ep)".
-    - 📚 Learn a talent by studying it and using its name repeatedly over a few turns. Ex: You [study word] Fireball.
-    - 🔤 Capitalized first-letter talent names are learned faster.
-    - 🧪 The system filters common words intelligently when detecting talent names.
-    - 🎓 Learning talents grants INTL experience.
-    - 📖 Talent learning progress is logged in the Player Talents Story Card notes.
-    - 📈 Using talents levels them up. Progress is also tracked in the Story Card.`
-  }
-  else if(text.includes("/help skills")){
-    state.commandCenter_TAS = 
-    `🎯 Skills System Guide
-
-    - 🪄 Skills require mana points (MP) to use. Example: Fireball.
-    - 🔄 Casting a talent transforms it into a skill.
-    - 📝 Edit skills in the Story Card using the format: "Skill Name (Lvl) (Mp)".
-    - 📈 Use skills to gain EXP — progress is logged in the Story Card.
-    - 🧪 Skills upgrade every 5 levels (up to level 25), changing their name and reducing MP cost by 5%.
-    - 💥 Skill power increases every 10 levels.`
-  }
-  else if (text.includes("/help inventory")) {
-  state.commandCenter_TAS = 
-  `📦 Inventory Help
-
-  - Store items by typing: "You [store words]... [item name]... [inventory words]."
-  - Include a number to specify quantity. Ex: "You put 2 apples in your bag."
-  - Edit your inventory in the story card using the format: "Item Name (Amt)".`
-  }
-  else if (text.includes("/help actions")) {
-    state.commandCenter_TAS = 
-    `🎬 Action System Help
-
-    - Item, talent, and skill usage requires name matching (exact or partial).
-    - Vague actions are taken literally. Example: "You slice it" (slice with what?).
-    - Cast skills: "You [cast verb] [skill name]."
-    - Rest to recover HP, MP, and energy:
-      • Light rest, moderate rest, full rest yield different recovery levels.
-      • Format: "You [enter words] [sleep words]."
-    - Use consumables for healing/energy. Example: "You drink a Mythical potion."
-    - Use skills/talents on yourself to heal. Format: "You [heal word] [yourself] [skill/talent]."
-    - ATK & SPD:
-      • +10 ATK & SPD → stronger attacks
-      • +10 SPD → faster actions, better dodging
-      • Attacking and dodging costs energy based on your ATK and SPD
-    - INTL:
-      • +10 INTL → greater detail when scouting.
-      • Scouting Format: "You [scout words]."`
-  }
-  else if (text.includes("/help")) {
-    state.commandCenter_TAS = 
-    ` TRUE AUTO STATS RPG SCRIPT BY Yi1i1i
-    🛠️ Script Commands
-
-    - Be sure to delete helper texts to avoid polluting the AI context.
-    - /start — Starts the script
-    - /end — Stops the script
-    - /help stats — Stat mechanics and usage
-    - /help talents — Talent mechanics and learning
-    - /help skills — Skill casting and upgrades
-    - /help inventory — Storing and managing items
-    - /help actions — Combat, healing, resting, and usage behaviors`
-  }
-}
-
-function helpCommandOutput_TAS(text){
-  if(state.commandCenter_TAS){
-    text = state.commandCenter_TAS;
-  }
-  delete state.commandCenter_TAS
   return text;
 }
 
@@ -292,11 +162,11 @@ learnWords = [
 ];
 
 equipWords = [
-  "acquire", "add", "collect", "equip", "gather", "grab", "hold", "keep", "loot", "obtain", "pick", "put", "receive", "retrieve", "stash", "store", "take", "wear"
+  "acquire", "add", "collect", "equip", "gather", "grab", "hold", "keep", "loot", "obtain", "pick", "put", "receive", "retrieve", "stash", "snatch", "store", "take", "toss", "wear"
 ];
 
 invWords = [
-  "bag", "backpack", "body", "case", "chest", "collection",  "container", "crates", "equipment", "hands", "hand", "holder", "holdings", "inventory", "items", "legs", "loot", "pack", "pocket", "pouch", "sack", "satchel", "storage", "supplies", "tote"
+  "bag", "backpack", "body", "case", "chest", "collection",  "container", "crates", "equipment", "hands", "hand", "holder", "holdings", "inventory", "items", "legs", "loot", "pack", "pocket", "pouch", "rucksack", "sack", "satchel", "storage", "supplies", "tote"
 ];
 
 numWords = [
@@ -1512,13 +1382,138 @@ const harnessSkill = [
 /////////////////////////////////////////////////////////////////////////////////////
 
 /// TAS STANDARD FUNCTIONS
+//Input /start unlocks the script else script naturally locked
+function unlockScript(key){ 
+  if (state.startScript == false) {
+    if (key.includes("/start")) {
+      state.startScript = true;
+      text = text + "\n 🔓 TAS Script Unlocked!";
+    }
+  }
+  return text;
+}
+
+//Detect input command /end to lock script
+function lockScript(key){ 
+  if (state.startScript == true) {
+    if (key.includes("/end")) {
+      state.startScript = false;
+      text = text + "\n 🔒 TAS Script Locked!"
+    }
+  }
+  return text;
+}
+
+//detect /help and display help
+function helpCommandInput_TAS(text){
+  if(text.includes("/help stats")){
+    state.commandCenter_TAS = 
+    `📊 Player Stats Guide
+
+    - 📥 Type "Player Stats" in the Story Cards to view your current stats.
+    - 🔄 Stats auto-update based on natural player input and context.
+    - ✏️ To manually adjust a stat, use the format: STAT: x/maxX.
+    - 🗒️ Stat change logs appear in the notes of the Player Stats Story Card.
+
+    🧠 Gameplay Mechanics
+
+    - ❤️ Health and 🔵 Mana regenerate every turn.
+    - ⚡ Energy decreases every turn.
+    - ⚠️ Low Health or Energy leads to consequences.
+    - 📈 Stats used in actions gain exp. Experience scales exponentially lower as your stats increase.
+    - 🎓 When a stat is maxed, overflow EXP goes to your main EXP pool.
+    - 🆙 Leveling up increases all max stats.
+
+    📐 Scaling & Calculations
+
+    - 🧠 Mana scales with INTL.
+    - 🛡️ X DEF = X/2 % damage reduction.
+    - ➕ DEF above 100 reduces damage by an extra 0.01% per 10 points.
+    - 🍀 Each point in LCK gives a 1% chance of a lucky boost.`
+  }
+  else if(text.includes("/help talents")){
+    state.commandCenter_TAS = 
+    `🎯 Talent System Guide
+
+    - 🧠 Talents represent your character's aptitudes (e.g., Cooking, Lockpicking, Fishing).
+    - ⚡ Talents consume energy points (EP) when used.
+    - ✨ Casting a talent transforms it into a skill, which uses mana (MP) instead.
+    - 📝 Edit talents in the Story Card using the format: "Talent Name (Lvl) (Ep)".
+    - 📚 Learn a talent by studying it and using its name repeatedly over a few turns. Ex: You [study word] Fireball.
+    - 🔤 Capitalized first-letter talent names are learned faster.
+    - 🧪 The system filters common words intelligently when detecting talent names.
+    - 🎓 Learning talents grants INTL experience.
+    - 📖 Talent learning progress is logged in the Player Talents Story Card notes.
+    - 📈 Using talents levels them up. Progress is also tracked in the Story Card.`
+  }
+  else if(text.includes("/help skills")){
+    state.commandCenter_TAS = 
+    `🎯 Skills System Guide
+
+    - 🪄 Skills require mana points (MP) to use. Example: Fireball.
+    - 🔄 Casting a talent transforms it into a skill.
+    - 📝 Edit skills in the Story Card using the format: "Skill Name (Lvl) (Mp)".
+    - 📈 Use skills to gain EXP — progress is logged in the Story Card.
+    - 🧪 Skills upgrade every 5 levels (up to level 25), changing their name and reducing MP cost by 5%.
+    - 💥 Skill power increases every 10 levels.`
+  }
+  else if (text.includes("/help inventory")) {
+  state.commandCenter_TAS = 
+  `📦 Inventory Help
+
+  - Store items by typing: "You [store words]... [item name]... [inventory words]."
+  - Include a number to specify quantity. Ex: "You put 2 apples in your bag."
+  - Edit your inventory in the story card using the format: "Item Name (Amt)".`
+  }
+  else if (text.includes("/help actions")) {
+    state.commandCenter_TAS = 
+    `🎬 Action System Help
+
+    - Item, talent, and skill usage requires name matching (exact or partial).
+    - Vague actions are taken literally. Example: "You slice it" (slice with what?).
+    - Cast skills: "You [cast verb] [skill name]."
+    - Rest to recover HP, MP, and energy:
+      • Light rest, moderate rest, full rest yield different recovery levels.
+      • Format: "You [enter words] [sleep words]."
+    - Use consumables for healing/energy. Example: "You drink a Mythical potion."
+    - Use skills/talents on yourself to heal. Format: "You [heal word] [yourself] [skill/talent]."
+    - ATK & SPD:
+      • +10 ATK & SPD → stronger attacks
+      • +10 SPD → faster actions, better dodging
+      • Attacking and dodging costs energy based on your ATK and SPD
+    - INTL:
+      • +10 INTL → greater detail when scouting.
+      • Scouting Format: "You [scout words]."`
+  }
+  else if (text.includes("/help")) {
+    state.commandCenter_TAS = 
+    ` TRUE AUTO STATS RPG SCRIPT BY Yi1i1i
+    🛠️ Script Commands
+
+    - Be sure to delete helper texts to avoid polluting the AI context.
+    - /start — Starts the script
+    - /end — Stops the script
+    - /help stats — Stat mechanics and usage
+    - /help talents — Talent mechanics and learning
+    - /help skills — Skill casting and upgrades
+    - /help inventory — Storing and managing items
+    - /help actions — Combat, healing, resting, and usage behaviors`
+  }
+}
+
+function helpCommandOutput_TAS(text){
+  if(state.commandCenter_TAS){
+    text = state.commandCenter_TAS;
+  }
+  delete state.commandCenter_TAS
+  return text;
+}
 
 // Increment turn counter at end of onOutput
 function turnCounter(){
   state.turnCount += 1;
   log("state.turnCount: " + state.turnCount);
 }
-
 
 // Function to capitalize first letter of a string
 function capitalizeFirst(str) {
@@ -1585,8 +1580,8 @@ function randomFloat(min, max){
   return Math.random() * (max - min) + min;
 }
 
-//Check for targets in text and split text string into words arr if there are. Replace all target words with first target word if simplify is true
-function findTargetsThenSplit(text, targetWordsArr, wordsArrHolder, simplifyTF) {
+// Check for targets in text and split text string into words arr if there are. Replace all target words with first target word if simplify is true
+function findTargetsThenSplit(text, targetWordsArr, wordsArrHolder, simplify) {
   if (text == null) return null;
 
   yesSplit = false
@@ -1601,7 +1596,7 @@ function findTargetsThenSplit(text, targetWordsArr, wordsArrHolder, simplifyTF) 
     //if text has target, set yessplit true
     if(targetRegex.test(cleanText)){
       //Optional replace large target words with first target word
-      if (simplifyTF === true && target.split(" ").length > 1) {
+      if (simplify === true && target.split(" ").length > 1) {
         cleanText = cleanText.replace(targetRegex, targetWordsArr[0]);
       }
 
@@ -1611,7 +1606,7 @@ function findTargetsThenSplit(text, targetWordsArr, wordsArrHolder, simplifyTF) 
   //log("cleanText postregex: " + cleanText);
   //log("yesSplit: " + yesSplit);
 
-  //split text if target was found
+  // split text if target was found
   if (yesSplit){
     wordsArrHolder = cleanText.split(/\s+/).filter(word => word.trim() !== "");
     //console.log("wordsArrHolder: ", wordsArrHolder);
@@ -2348,7 +2343,7 @@ function retrieveModifiersFromSC(){
   modEntries.forEach(entry => {
       // Match and extract stat and max stat values using regex
       const match = entry.trim().match(/^([A-Z]+)\s+Modifier:\s*(-?\d+(?:\.\d+)?)(?:%)?$/);
-      log("mod sc match: " + match); // HP Modifier: 0%
+      //log("mod sc match: " + match);
 
       //Store value in holder
       if (match) {
@@ -2362,7 +2357,7 @@ function retrieveModifiersFromSC(){
       }
   });
 
-  log(state.playerModifiers);
+  //log(state.playerModifiers);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -2508,7 +2503,7 @@ function retrieveStatsFromSC(){
     
     // Match and extract (statname, stat, maxStat)
     const match = entry.trim().match(/^([a-zA-Z]+)\s*:\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
-    log("stat sc match: " + match); // ATK: atk/maxAtk
+    //log("stat sc match: " + match);
 
     //Store value in holder
     if (match) {
@@ -2525,7 +2520,7 @@ function retrieveStatsFromSC(){
     }
   });
 
-  log(state.playerStats);
+  //log(state.playerStats);
 }
 
 // Function to increment the player's stats
@@ -2737,14 +2732,14 @@ function warnPlayerHealth(text){
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-//Initialize player inventory
+// Initialize player inventory
 state.playerInv = state.playerInv || {
   item: [],
   amt: []
 };
 console.log("Player Inventory: " + state.playerInv.item + "\n" + state.playerInv.amt);
 
-//CREATE new sc with player inv if sc doesnt exist
+// CREATE new sc with player inv if sc doesnt exist
 function createIfNoInvSC(){
   if (!storyCards.find(sc => sc.title === "Player Inventory")) {
     // If "Player Inventory" card doesn't exist, create it
@@ -2757,22 +2752,22 @@ function createIfNoInvSC(){
   }
 }
 
-//STORE inv to sc
+// STORE inv to sc
 function storeInvToSC(){
   // Fetch the "Player Inventory" card
   const invSC = storyCards.find(sc => sc.title === "Player Inventory");
 
-  //Format and display to sc
+  // Format and display to sc
   invSC.entry = state.playerInv.item.map((item, index) => `${item} (Amt: ${state.playerInv.amt[index]})`).join("\n");
   return true;
 }
 
-//RETRIEVE inv data from sc
+// RETRIEVE inv data from sc
 function retrieveInvFromSC(){
   // Fetch the "Player Inventory" card
   const invSC = storyCards.find(sc => sc.title === "Player Inventory");
 
-  //get inv sc entry
+  // Get inv sc entry
   fromInvSC = invSC.entry;
   log("fromInvSC: " + fromInvSC);
 
@@ -2786,15 +2781,16 @@ function retrieveInvFromSC(){
     amtHold.push(Number(match[2])); // Extract amount as integer to holder2
   }
 
-  //Store retrieved data to codebase 
+  // Store retrieved data to codebase 
   state.playerInv.item = itemHold;
   state.playerInv.amt = amtHold;
   //console.log("Items:", state.playerInv.item);
   //console.log("Amounts:", state.playerInv.amt);
 }
 
-//Detect when the player stores item and amt to their inventory
+// Detect when the player stores item and amt to their inventory
 function detectStoreInv(text){
+  // Initialize condition var
   startEquip = false;
 
   // Verify player is not dialoguing (case-insensitive)
@@ -2807,7 +2803,7 @@ function detectStoreInv(text){
     }
   });
 
-  //If not a dialogue, check for inventory words in input then split text into words arr
+  // If not a dialogue, check for inventory words in input then split text into words arr
   if(dialogueCheck == true){
     equipTextInput = [];
     equipTextInput = findTargetsThenSplit(text,invWords,equipTextInput,true);
@@ -2815,7 +2811,7 @@ function detectStoreInv(text){
     console.log("equipTextInput: " + equipTextInput);
   
 
-    //If there are inventory words, check for "you equip" in words arr using indices
+    // If there are inventory words, check for "you equip" in words arr using indices
     if(equipTextInput != null){
       //Get indices of all equip words in words arr
       allEquipWordIndices = [];
@@ -2823,7 +2819,7 @@ function detectStoreInv(text){
       log("allEquipWordIndices: " + allEquipWordIndices);
     
 
-      //If "you" is found within x indices of equip words, start equip process
+      // If "you" is found within x indices of equip words, start equip process
       if(allEquipWordIndices != null){
         startEquip = checkYouBeforeIndicesArr(equipTextInput,allEquipWordIndices,3) || checkAndBeforeIndicesArr(equipTextInput,allEquipWordIndices,2);
         log("startEquip:" + startEquip); 
@@ -2831,32 +2827,32 @@ function detectStoreInv(text){
     }
   }
 
-  //Start equip process when "you equip + inventory" is found in words arr
+  // Start equip process when "you equip + inventory" is found in words arr
   if(startEquip == true){
-    //Create an arr to store filtered words
+    // Create an arr to store filtered words
     likelyItemNames = equipTextInput;
 
-    //Filter words that arent likely item names
+    // Filter words that arent likely item names
     likelyItemNames = equipTextInput.filter(word => 
     ![...stopWords, ...equipWords,...talentWords,...dodgeWords,...castWords,...learnWords,...invWords,...numWords,...youWords,...selfWords,...consumeWords,...titleWords].some(fromArr => fromArr.toLowerCase() === word.toLowerCase())
     );
     console.log("likelyItemNames: " + likelyItemNames);
 
-    //If filtering didnt empty the words arr, start computing text item probability using weights
+    // Ensure filtering didnt empty the words arr
     if(likelyItemNames.length > 0){
-      //Get likely item names indices/location from player text
+      // Get likely item names indices/location from unfiltered input text
       indicesLikelyItem = indicesOfTargets(equipTextInput,likelyItemNames);
 
-      //remove duplicate indices
+      // Remove duplicate indices
       indicesLikelyItem = [...new Set(indicesLikelyItem)];
       log("indicesLikelyItem: " + indicesLikelyItem);
 
-      //Initialize weight array to hold 0 for the length of likelyitemnames because both arr are related
+      // Initialize weight array to hold 0 for the length of likelyitemnames because both arr are paired
       itemNameWeights = [];
       indicesLikelyItem.forEach(word => {itemNameWeights.push(0);});
       //log("itemNameWeights: " + itemNameWeights);
 
-      //get all indices of biased words in text, set to [] if null to avoid errors
+      // Get all indices of biased words in text, set to [] if null to avoid errors
       allEquipWordIndices = allEquipWordIndices || [];
       invWordIndices = indicesOfTargets(equipTextInput, invWords) || [];
       numIndices = indicesOfTargets(equipTextInput, numWords) || [];
@@ -2871,78 +2867,93 @@ function detectStoreInv(text){
       itIndices = indicesOf(equipTextInput, "it") || [];
       itsIndices = indicesOf(equipTextInput, "its") || [];
       themIndices = indicesOf(equipTextInput,"them") || [];
+      thatIndices = indicesOf(equipTextInput, "that") || [];
 
-      //Take each likelyItem and weigh them using conditions to deduce actual item, the indices can be used to compare distance in the plr sentence
+      //Take each likelyItem and weigh them using conditions to deduce actual item.Indices used to compare distance in the plr sentence
 
-      //If item is after an equip word (Ex: You place sword)
+      //If item is after an "equip word" (Ex: You place sword)
       if (allEquipWordIndices.length > 0) {
         isAfterIndex(indicesLikelyItem, allEquipWordIndices, 0, 3, 2, itemNameWeights);
         isAfterIndex(indicesLikelyItem, allEquipWordIndices, 4, 5, 1.5, itemNameWeights);
         isAfterIndex(indicesLikelyItem, allEquipWordIndices, 6, 10, 0.5, itemNameWeights);
       }
 
-      //If item is before an inventory word
+      //If item is before an "inventory word" (Ex: ...sword in your bag)
       if (invWordIndices.length > 0) {
-        //first 2 words before inv likely "in your" bag
-        isBeforeIndex(indicesLikelyItem, invWordIndices, 0, 2, 0.5, itemNameWeights);
+        // First 2 words before inv likely "in your" bag
+        isBeforeIndex(indicesLikelyItem, invWordIndices, 0, 2, -2, itemNameWeights);
         isBeforeIndex(indicesLikelyItem, invWordIndices, 2, 4, 2, itemNameWeights);
         isBeforeIndex(indicesLikelyItem, invWordIndices, 5, 6, 1.5, itemNameWeights);
 
       }
 
-      //If item is after number
+      //If item is after "number" (Ex: take 1 sword)
       if (numIndices.length > 0) {
-        isAfterIndex(indicesLikelyItem, numIndices, 0, 5, 2, itemNameWeights);
+        isAfterIndex(indicesLikelyItem, numIndices, 0, 3, 2, itemNameWeights);
       }
 
-      //If item is after the
+      //If item is after "the" (Ex: take the sword)
       if (theIndices.length > 0) {
         isAfterIndex(indicesLikelyItem, theIndices, 0, 4, 2, itemNameWeights);
       }
-      //If item is before from
+
+      //If item is before "from" (Ex: take sword from)
       if(fromIndices.length > 0){
         isBeforeIndex(indicesLikelyItem,fromIndices, 0, 2, 1, itemNameWeights);
         isBeforeIndex(indicesLikelyItem,fromIndices, 3, 4, 0.5, itemNameWeights);
 
+        isAfterIndex(indicesLikelyItem,fromIndices, 0, 3, -2, itemNameWeights);
+
       }
-      //If item is after a or an
+      //If item is after "a/an" (Ex: take a sword)
       if (aIndices.length > 0 || anIndices.length > 0) {
-        isAfterIndex(indicesLikelyItem, aIndices,0, 4, 1.5, itemNameWeights);
-        isAfterIndex(indicesLikelyItem, anIndices,0, 4, 1.5, itemNameWeights);
+        isAfterIndex(indicesLikelyItem, aIndices, 0, 4, 1.5, itemNameWeights);
+        isAfterIndex(indicesLikelyItem, anIndices, 0, 4, 1.5, itemNameWeights);
       }
 
-      //If item is after of
+      //If item is after "of" (Ex: take 3 of the swords)
       if (ofIndices.length > 0) {
-        //Ex: "Take 3 of the apples"
         isAfterIndex(indicesLikelyItem, ofIndices, 0, 1, 0.5, itemNameWeights);
         isAfterIndex(indicesLikelyItem, ofIndices, 2, 4, 1, itemNameWeights);
       }
 
-      //If item is before in or into
+      //If item is before "in/into" (Ex: take sword and put in)
       if (inIndices.length > 0 || intoIndices.length > 0) {
-        isBeforeIndex(indicesLikelyItem, inIndices,0, 8, 1, itemNameWeights);
-        isBeforeIndex(indicesLikelyItem, intoIndices,0, 8, 1, itemNameWeights);
+        isBeforeIndex(indicesLikelyItem, inIndices, 0, 8, 1, itemNameWeights);
+        isBeforeIndex(indicesLikelyItem, intoIndices, 0, 8, 1, itemNameWeights);
+
+        isAfterIndex(indicesLikelyItem, inIndices, 0, 3, -2, itemNameWeights);
       }
 
-      //If item is before and
+      //If item is before "and"
       if (andIndices.length > 0) {
         isBeforeIndex(indicesLikelyItem, andIndices, 0, 3, 1, itemNameWeights);
-        (indicesLikelyItem, andIndices, 4, 6, 0.5, itemNameWeights);
+        isBeforeIndex(indicesLikelyItem, andIndices, 4, 6, 0.5, itemNameWeights);
 
       }
 
-      //if item is before it or its
+      //If item is before "it/its"
       if (itIndices.length > 0 || itsIndices.length > 0) {
         //Ex: "apple and put it"
-        isBeforeIndex(indicesLikelyItem, itIndices, 0,3, 0.5, itemNameWeights);
-        isBeforeIndex(indicesLikelyItem, itsIndices, 4,8, 1.5, itemNameWeights);
+        isBeforeIndex(indicesLikelyItem, itIndices, 0, 3, -1, itemNameWeights);
+        isBeforeIndex(indicesLikelyItem, itsIndices, 4, 8, 1.5, itemNameWeights);
+
+        isBeforeIndex(indicesLikelyItem, itsIndices, 0, 3, -2, itemNameWeights);
       }
 
       //If item is before "them"
       if(themIndices.length > 0){
-        //Ex: "and put them"
-        isBeforeIndex(indicesLikelyItem, themIndices, 0,3, 0.5, itemNameWeights);
+        // Ex: "and put them"
+        isBeforeIndex(indicesLikelyItem, themIndices, 0,3, -1.5, itemNameWeights);
         isBeforeIndex(indicesLikelyItem, themIndices, 4,8, 1.5, itemNameWeights);
+
+        isAfterIndex(indicesLikelyItem, themIndices, 0, 2, -2, itemNameWeights);
+      }
+
+       //If item is after "that"
+      if(themIndices.length > 0){
+        // Ex: take that apple
+        isAfterIndex(indicesLikelyItem, thatIndices, 0, 3, 1.5, itemNameWeights);
       }
       log("itemNameWeights: " + itemNameWeights);
 
@@ -2956,7 +2967,7 @@ function detectStoreInv(text){
           itemNameParts.push(likelyItemNames[index]);
           log("itemNameParts: " + itemNameParts);
 
-          //Get the item amt index determined by proximity to item name from plr sentence if it exists
+          // Get the item amt index determined by proximity to item name from plr sentence if it exists
           finalItemAmtIndex = findClosestNumberIndex(equipTextInput,indicesLikelyItem[index]); //returns -1 if no numbers exist 
           log("finalItemAmtIndex: " + finalItemAmtIndex);
 
