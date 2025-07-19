@@ -87,7 +87,6 @@ function onInput_TAS(text) {
 // CONTEXT HOOK
 function onContext_TAS(text){
   text = removeAngleText(text);
-  log(text);
   
   return text;
 }
