@@ -15,8 +15,9 @@ onLibrary_TAS();
 function onLibrary_TAS() {
   // UNLOCK SCRIPT FOR DEBUG (Comment out to turn off)
   state.startScript = true;
+  log("state.startScript: " + state.startScript);
 
-  //Initialize the script lock only if undefined so its not set false each turn even if unlocked
+  // Initialize variables
   if (state.startScript == undefined) {
     // Script is naturally locked
     state.startScript = false;
@@ -24,9 +25,9 @@ function onLibrary_TAS() {
   if (state.turnCount == undefined) {
     state.turnCount = 0;
   }
-
-  log("state.startScript: " + state.startScript);
-  
+  if (state.msgHolder == undefined){
+    state.msgHolder = "";
+  }
 }
 
 // INPUT HOOK
@@ -37,7 +38,7 @@ function onInput_TAS(text) {
   //Check for locking
   text = lockScript(text);
 
-  helpCommandInput_TAS(text);
+  text = helpCommandInput_TAS(text);
 
   //Unlocking runs main()
   if (state.startScript == true && info.actionCount >= 0) {
@@ -85,7 +86,8 @@ function onInput_TAS(text) {
 
 // CONTEXT HOOK
 function onContext_TAS(text){
-  
+  text = removeAngleText(text);
+  log(text);
   
   return text;
 }
@@ -136,6 +138,9 @@ function onOutput_TAS(text) {
     retrieveModifiersFromSC()
     //Final mods store back to SC in correct formatting
     storeModifiersToSC();
+
+    state.message = state.msgHolder;
+    state.msgHolder = "";
 
     turnCounter();
   }//end of main()
@@ -1408,7 +1413,9 @@ function lockScript(key){
 function helpCommandInput_TAS(text){
   if(text.includes("/help stats")){
     state.commandCenter_TAS = 
-    `📊 Player Stats Guide
+    `
+    <<
+    📊 Player Stats Guide
 
     - 📥 Type "Player Stats" in the Story Cards to view your current stats.
     - 🔄 Stats auto-update based on natural player input and context.
@@ -1421,7 +1428,7 @@ function helpCommandInput_TAS(text){
     - ⚡ Energy decreases every turn.
     - ⚠️ Low Health or Energy leads to consequences.
     - 📈 Stats used in actions gain exp. Experience scales exponentially lower as your stats increase.
-    - 🎓 When a stat is maxed, overflow EXP goes to your main EXP pool.
+    - 🎓 When a stat is maxed, exp overflows to your main EXP pool for leveling up instead.
     - 🆙 Leveling up increases all max stats.
 
     📐 Scaling & Calculations
@@ -1429,11 +1436,15 @@ function helpCommandInput_TAS(text){
     - 🧠 Mana scales with INTL.
     - 🛡️ X DEF = X/2 % damage reduction.
     - ➕ DEF above 100 reduces damage by an extra 0.01% per 10 points.
-    - 🍀 Each point in LCK gives a 1% chance of a lucky boost.`
+    - 🍀 Each point in LCK gives a 1% chance of a lucky boost.
+    >>
+    `
   }
   else if(text.includes("/help talents")){
     state.commandCenter_TAS = 
-    `🎯 Talent System Guide
+    `
+    <<
+    🎯 Talent System Guide
 
     - 🧠 Talents represent your character's aptitudes (e.g., Cooking, Lockpicking, Fishing).
     - ⚡ Talents consume energy points (EP) when used.
@@ -1444,30 +1455,43 @@ function helpCommandInput_TAS(text){
     - 🧪 The system filters common words intelligently when detecting talent names.
     - 🎓 Learning talents grants INTL experience.
     - 📖 Talent learning progress is logged in the Player Talents Story Card notes.
-    - 📈 Using talents levels them up. Progress is also tracked in the Story Card.`
+    - 📈 Using talents levels them up. Progress is also tracked in the Story Card.
+    >>
+    `
   }
   else if(text.includes("/help skills")){
     state.commandCenter_TAS = 
-    `🎯 Skills System Guide
+    `
+    <<
+    🎯 Skills System Guide
 
     - 🪄 Skills require mana points (MP) to use. Example: Fireball.
     - 🔄 Casting a talent transforms it into a skill.
     - 📝 Edit skills in the Story Card using the format: "Skill Name (Lvl) (Mp)".
     - 📈 Use skills to gain EXP — progress is logged in the Story Card.
     - 🧪 Skills upgrade every 5 levels (up to level 25), changing their name and reducing MP cost by 5%.
-    - 💥 Skill power increases every 10 levels.`
+    - 💥 Skill power increases every 10 levels.
+    >>
+    `
   }
+  
   else if (text.includes("/help inventory")) {
   state.commandCenter_TAS = 
-  `📦 Inventory Help
+  `
+  <<
+  📦 Inventory Help
 
   - Store items by typing: "You [store words]... [item name]... [inventory words]."
   - Include a number to specify quantity. Ex: "You put 2 apples in your bag."
-  - Edit your inventory in the story card using the format: "Item Name (Amt)".`
+  - Edit your inventory in the story card using the format: "Item Name (Amt)".
+  >>
+  `
   }
   else if (text.includes("/help actions")) {
     state.commandCenter_TAS = 
-    `🎬 Action System Help
+    `
+    <<
+    🎬 Action System Help
 
     - Item, talent, and skill usage requires name matching (exact or partial).
     - Vague actions are taken literally. Example: "You slice it" (slice with what?).
@@ -1483,22 +1507,47 @@ function helpCommandInput_TAS(text){
       • Attacking and dodging costs energy based on your ATK and SPD
     - INTL:
       • +10 INTL → greater detail when scouting.
-      • Scouting Format: "You [scout words]."`
+      • Scouting Format: "You [scout words]."
+    >>
+    `
+  }
+  else if (text.includes("/help keywords")) {
+    state.commandCenter_TAS = 
+    `
+    <<
+    🔎 talentWords:\n${talentWords}
+    🔎 castWords:\n${castWords}
+    🔎 equipWords:\n${equipWords}
+    🔎 invWords:\n${invWords}
+    🔎 attackWords:\n${attackWords}
+    🔎 dodgeWords:\n${dodgeWords}
+    🔎 consumeWords:\n${consumeWords}
+    🔎 restingWords:\n${restingWords}
+    🔎 scoutWords:\n${scoutWords}
+    >>
+    `
   }
   else if (text.includes("/help")) {
     state.commandCenter_TAS = 
-    ` TRUE AUTO STATS RPG SCRIPT BY Yi1i1i
+    `
+    <<
+    TRUE AUTO STATS RPG SCRIPT BY Yi1i1i
     🛠️ Script Commands
 
-    - Be sure to delete helper texts to avoid polluting the AI context.
     - /start — Starts the script
     - /end — Stops the script
     - /help stats — Stat mechanics and usage
     - /help talents — Talent mechanics and learning
     - /help skills — Skill casting and upgrades
     - /help inventory — Storing and managing items
-    - /help actions — Combat, healing, resting, and usage behaviors`
+    - /help actions — Combat, healing, resting, and usage behaviors
+    - /help keywords — Command triggers
+    >>
+    `
   }
+
+  // Clear command from context
+  return " ";
 }
 
 function helpCommandOutput_TAS(text){
@@ -1513,6 +1562,11 @@ function helpCommandOutput_TAS(text){
 function turnCounter(){
   state.turnCount += 1;
   log("state.turnCount: " + state.turnCount);
+}
+
+// Remove script texts to clean AI context
+function removeAngleText(text) {
+  return text.replace(/<<[\s\S]*?>>/g, '');
 }
 
 // Function to capitalize first letter of a string
@@ -1589,13 +1643,13 @@ function findTargetsThenSplit(text, targetWordsArr, wordsArrHolder, simplify) {
   // Remove punctuation first to standardize text processing
   cleanText = removeSpecificPunctuation(text); //str
 
-  //loop through target words check if text has target
+  // loop through target words and check if text has target
   targetWordsArr.forEach(target => {
     targetRegex = new RegExp(`\\b${target}\\b`, "gi");
     
-    //if text has target, set yessplit true
+    // If text has target, set yessplit true
     if(targetRegex.test(cleanText)){
-      //Optional replace large target words with first target word
+      // Optional replace large target words with first target word
       if (simplify === true && target.split(" ").length > 1) {
         cleanText = cleanText.replace(targetRegex, targetWordsArr[0]);
       }
@@ -1606,7 +1660,7 @@ function findTargetsThenSplit(text, targetWordsArr, wordsArrHolder, simplify) {
   //log("cleanText postregex: " + cleanText);
   //log("yesSplit: " + yesSplit);
 
-  // split text if target was found
+  // Split text if target was found
   if (yesSplit){
     wordsArrHolder = cleanText.split(/\s+/).filter(word => word.trim() !== "");
     //console.log("wordsArrHolder: ", wordsArrHolder);
@@ -1764,23 +1818,85 @@ function isBeforeIndex(guestIndices, homeIndices, minDis,maxDis, weightIfTrue, w
   }
 }
 
-//For specificed target index, returns the index of the closest number or -1 if no number is found
-function findClosestNumberIndex(arr, targetIndex) {
-  let closestIndex = -1;
-  let minDistance = Infinity;
+function findClosestNumberBefore(arr, index) {
+  for (let i = index - 1; i >= 0; i--) {
+    const match = arr[i].match(/(\d+(\.\d+)?)/); // match integer or decimal
+    if (match) {
+      return Number(match[1]);
+    }
+  }
+  return null; // no number found before index
+}
 
-  for (let i = 0; i < arr.length; i++) {
-    //arr[i] = Number(arr[i]);
-    if (!isNaN(arr[i])) { // Check if the element is a valid number
-      let distance = Math.abs(i - targetIndex);
-      if (distance < minDistance) {
-        minDistance = distance;
-        closestIndex = i;
+function wordsToNumber(text) {
+  const smallNumbers = {
+    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+    "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14,
+    "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19
+  };
+
+  const tens = {
+    "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50,
+    "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90
+  };
+
+  const multipliers = {
+    "hundred": 100,
+    "thousand": 1000,
+    "million": 1000000,
+    "billion": 1000000000
+  };
+
+  // Match possible number phrases like "two hundred and twenty-five"
+  const numberWordsRegex = new RegExp(
+    '\\b(?:(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|' +
+    'eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|' +
+    'twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|' +
+    'hundred|thousand|million|billion|[-])+\\s*)+\\b',
+    'gi'
+  );
+
+  // Process a number phrase like "one hundred twenty three"
+  function parseNumberPhrase(phrase) {
+    const words = phrase.toLowerCase().replace(/-/g, ' ').split(/\s+/);
+    let total = 0, current = 0;
+
+    for (let word of words) {
+      if (smallNumbers[word] != null) {
+        current += smallNumbers[word];
+      } else if (tens[word] != null) {
+        current += tens[word];
+      } else if (word === "hundred") {
+        current *= 100;
+      } else if (multipliers[word]) {
+        current *= multipliers[word];
+        total += current;
+        current = 0;
       }
+    }
+
+
+    return total + current + " ";
+
+  }
+
+  // Replace all matching phrases with numeric values
+  return text.replace(numberWordsRegex, match => {
+    return parseNumberPhrase(match);
+  });
+}
+
+function getDigitIndices(wordsArray) {
+  const digitIndices = [];
+
+  for (let i = 0; i < wordsArray.length; i++) {
+    if (/^\d+$/.test(wordsArray[i])) {
+      digitIndices.push(i);
     }
   }
 
-  return closestIndex; 
+  return digitIndices;
 }
 
 //Function to get plr race
@@ -2329,6 +2445,14 @@ function storeModifiersToSC(){
 
   //Convert holder to string, clean commas, and finally store to sc entry
   modSC.entry = String(formatForSC).replace(/,/g, '');
+
+  // Trim notes on char limit to prevent memory overfill
+  if (modSC.description.length > 3000) {
+    halfIndex = Math.floor(modSC.description.length / 2);
+    modSC.description = modSC.description.slice(0, halfIndex);
+
+    console.log("Trimming modSC description to prevent memory overload.");
+  }
 }
 
 //RETRIEVE data from sc and store to playerModifiers
@@ -2469,6 +2593,14 @@ function storeStatsToSC(){
 
   // Convert holder to string, clean commas, and finally store to sc entry
   statSC.entry = String(formatForSC).replace(/,/g, '');
+
+  // Trim notes on char limit to prevent memory overfill
+  if (statSC.description.length > 3000) {
+    halfIndex = Math.floor(statSC.description.length / 2);
+    statSC.description = statSC.description.slice(0, halfIndex);
+
+    console.log("Trimming statSC description to prevent memory overload.");
+  }
 }
 
 // RETRIEVE data from sc and store to playerstats
@@ -2569,9 +2701,13 @@ function statUp(statName,incAmt){
 
     // Fetch the "Player Stats" card and log stat changes in description
     const statSC = storyCards.find(sc => sc.title === "Player Stats");
+
     if (incAmt >= 0) { sign = "⬆️" }
     if (incAmt < 0) { sign = "🔻" }
+
     statSC.description = `Log ${state.turnCount} | ${statName.toUpperCase()} ${sign} :  ${stat} → ${state.playerStats[statName]} (Modded: ${incAmt}, Raw: ${preModIncAmt})\n` + statSC.description;
+
+    state.msgHolder = state.msgHolder + `${statName.toUpperCase()} ${sign} :  ${stat} → ${state.playerStats[statName]}\n`;
   }
   else{
     //Formula which decreases value of exp the higher your level and gets the new stat value after exp gain. (stat + incAmt*PercentReduction)
@@ -2602,9 +2738,13 @@ function statUp(statName,incAmt){
 
     // Fetch the "Player Stats" card and log stat changes in description
     const statSC = storyCards.find(sc => sc.title === "Player Stats");
+
     if (incAmt >= 0) { sign = "⬆️" }
     if (incAmt < 0) { sign = "🔻" }
+
     statSC.description = `Log ${state.turnCount} | ${statName.toUpperCase()} ${sign} :  ${stat} → ${state.playerStats[statName]} (Scaled: ${scaledIncAmt}, Modded: ${incAmt}, Raw: ${preModIncAmt})\n` + statSC.description;
+
+    state.msgHolder = state.msgHolder + `${statName.toUpperCase()} ${sign} :  ${stat} → ${state.playerStats[statName]}\n`;
 
     //If there is positive stat overflow, pass it to player EXP
     if(overflow > 0){
@@ -2636,9 +2776,11 @@ function statUp(statName,incAmt){
         state.playerStats.exp = 0 + leftoverExp;
         state.playerStats.exp = Math.round(state.playerStats.exp * 100) / 100;
 
-        // Fetch the "Player Stats" card and leave update in description
+        // Fetch the "Player Stats" card and leave log in description
         const statSC = storyCards.find(sc => sc.title === "Player Stats");
         statSC.description = `Log ${state.turnCount} | LVL ${level} → ${state.playerStats.maxLvl}\n` + statSC.description;
+
+        state.msgHolder = state.msgHolder + `LVL ${level} → ${state.playerStats.maxLvl}\n`;
 
         // Since player has leveled up, increase all max stats
         maxStatKeys.forEach((key) => {
@@ -2707,25 +2849,29 @@ function warnPlayerHealth(text){
   //Player Death at 0%
   if(plrHealth <= 0 && state.inputCount % 2 === 0){
     text = text + ` Suddenly, ${healthDeathArray[randomInt(0,healthDeathArray.length-1)]} The world continues without you.`;
+
+    state.msgHolder = state.msgHolder + `GAME OVER. You died!\n`;
   }
 
 
   //Warns every 5 input, at 50% energy
   if((plrEnergy/plrMaxEnergy) >= 0.45 && (plrEnergy/plrMaxEnergy) <= 0.50 && state.inputCount % numTurnsDisplay === 0){
     text = text + ` ${realizePhrases[randomInt(0,realizePhrases.length-1)]} ${halfEnergyArray[randomInt(0,halfEnergyArray.length-1)]}`;
-    
   }
   //Warns at 1% to 10% energy
   else if((plrEnergy/plrMaxEnergy) >= 0.01 && (plrEnergy/plrMaxEnergy) <= 0.10 && state.inputCount % numTurnsDisplay === 0){
     text = text + ` ${realizePhrases[randomInt(0,realizePhrases.length-1)]} ${exhaustedArray[randomInt(0,exhaustedArray.length-1)]}`;
+
+    state.msgHolder = state.msgHolder + `Your energy is very low. You may want to rest or eat.\n`
 
   }
   
   //No energy at 0%
   if(plrEnergy <= 0 && state.inputCount % 5 === 0){
     text = text + ` Suddenly, ${exhaustionSleepArray[randomInt(0,exhaustionSleepArray.length-1)]}`; 
-  }
 
+    state.msgHolder = state.msgHolder + `You have no energy! Recover by consuming or sleeping.\n`
+  }
 
   return text;
 }
@@ -2759,7 +2905,14 @@ function storeInvToSC(){
 
   // Format and display to sc
   invSC.entry = state.playerInv.item.map((item, index) => `${item} (Amt: ${state.playerInv.amt[index]})`).join("\n");
-  return true;
+
+  // Trim notes on char limit to prevent memory overfill
+  if (invSC.description.length > 3000) {
+    halfIndex = Math.floor(invSC.description.length / 2);
+    invSC.description = invSC.description.slice(0, halfIndex);
+
+    console.log("Trimming invSC description to prevent memory overload.");
+  }
 }
 
 // RETRIEVE inv data from sc
@@ -2789,7 +2942,7 @@ function retrieveInvFromSC(){
 }
 
 // Detect when the player stores item and amt to their inventory
-function detectStoreInv(text){
+function detectStoreInv(text) {
   // Initialize condition var
   startEquip = false;
 
@@ -2797,66 +2950,71 @@ function detectStoreInv(text){
   dialogueCheck = true;
   textLower = text.toLowerCase();
   dialoguePhrases.forEach(phrase => {
-    if(textLower.includes(phrase.toLowerCase())){
+    if (textLower.includes(phrase.toLowerCase())) {
       // Disable check dialoguing exists
       dialogueCheck = false;
     }
   });
 
   // If not a dialogue, check for inventory words in input then split text into words arr
-  if(dialogueCheck == true){
+  if (dialogueCheck == true) {
     equipTextInput = [];
-    equipTextInput = findTargetsThenSplit(text,invWords,equipTextInput,true);
+    newText = wordsToNumber(text);
+    equipTextInput = findTargetsThenSplit(newText, invWords, equipTextInput, true);
     //equipTextInput = findTargetsThenSplit(text,equipWords,equipTextInput,true);
     console.log("equipTextInput: " + equipTextInput);
-  
+
 
     // If there are inventory words, check for "you equip" in words arr using indices
-    if(equipTextInput != null){
+    if (equipTextInput != null) {
       //Get indices of all equip words in words arr
       allEquipWordIndices = [];
-      allEquipWordIndices = indicesOfTargets(equipTextInput,equipWords);
+      allEquipWordIndices = indicesOfTargets(equipTextInput, equipWords);
       log("allEquipWordIndices: " + allEquipWordIndices);
-    
+
 
       // If "you" is found within x indices of equip words, start equip process
-      if(allEquipWordIndices != null){
-        startEquip = checkYouBeforeIndicesArr(equipTextInput,allEquipWordIndices,3) || checkAndBeforeIndicesArr(equipTextInput,allEquipWordIndices,2);
-        log("startEquip:" + startEquip); 
+      if (allEquipWordIndices != null) {
+        startEquip = checkYouBeforeIndicesArr(equipTextInput, allEquipWordIndices, 3) || checkAndBeforeIndicesArr(equipTextInput, allEquipWordIndices, 2);
+        log("startEquip:" + startEquip);
       }
     }
   }
 
   // Start equip process when "you equip + inventory" is found in words arr
-  if(startEquip == true){
-    // Create an arr to store filtered words
-    likelyItemNames = equipTextInput;
+  if (startEquip == true) {
+    // Initialize arrays for potential items from filtered input
+    potentialItem = {
+      tokens: [],
+      indices: [],
+      weights: []
+    };
 
-    // Filter words that arent likely item names
-    likelyItemNames = equipTextInput.filter(word => 
-    ![...stopWords, ...equipWords,...talentWords,...dodgeWords,...castWords,...learnWords,...invWords,...numWords,...youWords,...selfWords,...consumeWords,...titleWords].some(fromArr => fromArr.toLowerCase() === word.toLowerCase())
+    // Filter out words that arent potential items
+    potentialItem.tokens = equipTextInput.filter(word =>
+      ![...stopWords, ...equipWords, ...talentWords, ...dodgeWords, ...castWords, ...learnWords, ...invWords, ...numWords, ...youWords, ...selfWords, ...consumeWords, ...titleWords].some(fromArr => fromArr.toLowerCase() === word.toLowerCase())
     );
-    console.log("likelyItemNames: " + likelyItemNames);
+    potentialItem.tokens = potentialItem.tokens.filter(word => !/^\d+$/.test(word));
+    console.log("potentialItem.tokens: " + potentialItem.tokens);
 
-    // Ensure filtering didnt empty the words arr
-    if(likelyItemNames.length > 0){
-      // Get likely item names indices/location from unfiltered input text
-      indicesLikelyItem = indicesOfTargets(equipTextInput,likelyItemNames);
+    if (potentialItem.tokens.length > 0) {
+      // Get potential item indices from unfiltered input text
+      potentialItem.indices = indicesOfTargets(equipTextInput, potentialItem.tokens);
 
       // Remove duplicate indices
-      indicesLikelyItem = [...new Set(indicesLikelyItem)];
-      log("indicesLikelyItem: " + indicesLikelyItem);
+      potentialItem.indices = [...new Set(potentialItem.indices)];
+      log("potentialItem.indices: " + potentialItem.indices);
 
-      // Initialize weight array to hold 0 for the length of likelyitemnames because both arr are paired
-      itemNameWeights = [];
-      indicesLikelyItem.forEach(word => {itemNameWeights.push(0);});
-      //log("itemNameWeights: " + itemNameWeights);
+      // Initialize weight array to hold 0 for each potential item token
+      potentialItem.weights = [];
+      potentialItem.indices.forEach(word => { potentialItem.weights.push(0); });
+      //log("potentialItem.weights: " + potentialItem.weights);
 
       // Get all indices of biased words in text, set to [] if null to avoid errors
       allEquipWordIndices = allEquipWordIndices || [];
       invWordIndices = indicesOfTargets(equipTextInput, invWords) || [];
-      numIndices = indicesOfTargets(equipTextInput, numWords) || [];
-      fromIndices = indicesOf(equipTextInput,"from") || [];
+      numIndices = getDigitIndices(equipTextInput) || [];
+      fromIndices = indicesOf(equipTextInput, "from") || [];
       theIndices = indicesOf(equipTextInput, "the") || [];
       aIndices = indicesOf(equipTextInput, "a") || [];
       anIndices = indicesOf(equipTextInput, "an") || [];
@@ -2866,158 +3024,188 @@ function detectStoreInv(text){
       andIndices = indicesOf(equipTextInput, "and") || [];
       itIndices = indicesOf(equipTextInput, "it") || [];
       itsIndices = indicesOf(equipTextInput, "its") || [];
-      themIndices = indicesOf(equipTextInput,"them") || [];
+      themIndices = indicesOf(equipTextInput, "them") || [];
       thatIndices = indicesOf(equipTextInput, "that") || [];
+      thenIndices = indicesOf(equipTextInput, "then") || [];
 
-      //Take each likelyItem and weigh them using conditions to deduce actual item.Indices used to compare distance in the plr sentence
-
-      //If item is after an "equip word" (Ex: You place sword)
+      // Weigh each token based on distance before or after biased words
+      // If token is near an "equip word"
       if (allEquipWordIndices.length > 0) {
-        isAfterIndex(indicesLikelyItem, allEquipWordIndices, 0, 3, 2, itemNameWeights);
-        isAfterIndex(indicesLikelyItem, allEquipWordIndices, 4, 5, 1.5, itemNameWeights);
-        isAfterIndex(indicesLikelyItem, allEquipWordIndices, 6, 10, 0.5, itemNameWeights);
+        // Ex: You place sword
+        isAfterIndex(potentialItem.indices, allEquipWordIndices, 0, 3, 2.5, potentialItem.weights);
+        isAfterIndex(potentialItem.indices, allEquipWordIndices, 4, 5, 1.5, potentialItem.weights);
+        isAfterIndex(potentialItem.indices, allEquipWordIndices, 6, 10, 0.5, potentialItem.weights);
       }
 
-      //If item is before an "inventory word" (Ex: ...sword in your bag)
+      // If token is near an "inventory word"
       if (invWordIndices.length > 0) {
-        // First 2 words before inv likely "in your" bag
-        isBeforeIndex(indicesLikelyItem, invWordIndices, 0, 2, -2, itemNameWeights);
-        isBeforeIndex(indicesLikelyItem, invWordIndices, 2, 4, 2, itemNameWeights);
-        isBeforeIndex(indicesLikelyItem, invWordIndices, 5, 6, 1.5, itemNameWeights);
-
+        // First 2 words before inv likely "in your" bag (Ex: ...sword in your bag)
+        isBeforeIndex(potentialItem.indices, invWordIndices, 0, 2, -2.5, potentialItem.weights);
+        isBeforeIndex(potentialItem.indices, invWordIndices, 2, 4, 2, potentialItem.weights);
+        isBeforeIndex(potentialItem.indices, invWordIndices, 5, 6, 1.5, potentialItem.weights);
       }
 
-      //If item is after "number" (Ex: take 1 sword)
+      // If token is near "number"
       if (numIndices.length > 0) {
-        isAfterIndex(indicesLikelyItem, numIndices, 0, 3, 2, itemNameWeights);
+        // Ex: take 1 sword
+        isAfterIndex(potentialItem.indices, numIndices, 0, 3, 2.5, potentialItem.weights);
       }
 
-      //If item is after "the" (Ex: take the sword)
+      // If token is near "the" 
       if (theIndices.length > 0) {
-        isAfterIndex(indicesLikelyItem, theIndices, 0, 4, 2, itemNameWeights);
+        // Ex: take the sword
+        isAfterIndex(potentialItem.indices, theIndices, 0, 4, 2.5, potentialItem.weights);
       }
 
-      //If item is before "from" (Ex: take sword from)
-      if(fromIndices.length > 0){
-        isBeforeIndex(indicesLikelyItem,fromIndices, 0, 2, 1, itemNameWeights);
-        isBeforeIndex(indicesLikelyItem,fromIndices, 3, 4, 0.5, itemNameWeights);
+      // If token is near "from"
+      if (fromIndices.length > 0) {
+        // Ex: take sword from
+        isBeforeIndex(potentialItem.indices, fromIndices, 0, 2, 1, potentialItem.weights);
+        isBeforeIndex(potentialItem.indices, fromIndices, 3, 4, 0.5, potentialItem.weights);
 
-        isAfterIndex(indicesLikelyItem,fromIndices, 0, 3, -2, itemNameWeights);
+        isAfterIndex(potentialItem.indices, fromIndices, 0, 3, -2, potentialItem.weights);
 
       }
-      //If item is after "a/an" (Ex: take a sword)
+      // If token is near "a/an"
       if (aIndices.length > 0 || anIndices.length > 0) {
-        isAfterIndex(indicesLikelyItem, aIndices, 0, 4, 1.5, itemNameWeights);
-        isAfterIndex(indicesLikelyItem, anIndices, 0, 4, 1.5, itemNameWeights);
+        // Ex: take a sword
+        isAfterIndex(potentialItem.indices, aIndices, 0, 4, 1.5, potentialItem.weights);
+        isAfterIndex(potentialItem.indices, anIndices, 0, 4, 1.5, potentialItem.weights);
       }
 
-      //If item is after "of" (Ex: take 3 of the swords)
+      // If token is near "of" 
       if (ofIndices.length > 0) {
-        isAfterIndex(indicesLikelyItem, ofIndices, 0, 1, 0.5, itemNameWeights);
-        isAfterIndex(indicesLikelyItem, ofIndices, 2, 4, 1, itemNameWeights);
+        // Ex: take 3 of the swords
+        isAfterIndex(potentialItem.indices, ofIndices, 0, 1, 0.5, potentialItem.weights);
+        isAfterIndex(potentialItem.indices, ofIndices, 2, 4, 1, potentialItem.weights);
       }
 
-      //If item is before "in/into" (Ex: take sword and put in)
+      // If token is near "in/into"  
       if (inIndices.length > 0 || intoIndices.length > 0) {
-        isBeforeIndex(indicesLikelyItem, inIndices, 0, 8, 1, itemNameWeights);
-        isBeforeIndex(indicesLikelyItem, intoIndices, 0, 8, 1, itemNameWeights);
+        // Ex: take sword and put in
+        isBeforeIndex(potentialItem.indices, inIndices, 0, 8, 1, potentialItem.weights);
+        isBeforeIndex(potentialItem.indices, intoIndices, 0, 8, 1, potentialItem.weights);
 
-        isAfterIndex(indicesLikelyItem, inIndices, 0, 3, -2, itemNameWeights);
+        isAfterIndex(potentialItem.indices, inIndices, 0, 3, -2, potentialItem.weights);
       }
 
-      //If item is before "and"
+      // If token is near "and"
       if (andIndices.length > 0) {
-        isBeforeIndex(indicesLikelyItem, andIndices, 0, 3, 1, itemNameWeights);
-        isBeforeIndex(indicesLikelyItem, andIndices, 4, 6, 0.5, itemNameWeights);
+        // Ex: sword, gun, and shield
+        isBeforeIndex(potentialItem.indices, andIndices, 0, 3, 1, potentialItem.weights);
+        isBeforeIndex(potentialItem.indices, andIndices, 4, 6, 0.5, potentialItem.weights);
+
+        isAfterIndex(potentialItem.indices, andIndices, 0, 3, 1.5, potentialItem.weights);
 
       }
 
-      //If item is before "it/its"
+      // If token is near "it/its"
       if (itIndices.length > 0 || itsIndices.length > 0) {
         //Ex: "apple and put it"
-        isBeforeIndex(indicesLikelyItem, itIndices, 0, 3, -1, itemNameWeights);
-        isBeforeIndex(indicesLikelyItem, itsIndices, 4, 8, 1.5, itemNameWeights);
+        isBeforeIndex(potentialItem.indices, itIndices, 0, 3, -1, potentialItem.weights);
+        isBeforeIndex(potentialItem.indices, itsIndices, 4, 8, 1.5, potentialItem.weights);
 
-        isBeforeIndex(indicesLikelyItem, itsIndices, 0, 3, -2, itemNameWeights);
+        isAfterIndex(potentialItem.indices, itsIndices, 0, 3, -2, potentialItem.weights);
       }
 
-      //If item is before "them"
-      if(themIndices.length > 0){
+      // If token is near "them"
+      if (themIndices.length > 0) {
         // Ex: "and put them"
-        isBeforeIndex(indicesLikelyItem, themIndices, 0,3, -1.5, itemNameWeights);
-        isBeforeIndex(indicesLikelyItem, themIndices, 4,8, 1.5, itemNameWeights);
+        isBeforeIndex(potentialItem.indices, themIndices, 0, 3, -1.5, potentialItem.weights);
+        isBeforeIndex(potentialItem.indices, themIndices, 4, 8, 1.5, potentialItem.weights);
 
-        isAfterIndex(indicesLikelyItem, themIndices, 0, 2, -2, itemNameWeights);
+        isAfterIndex(potentialItem.indices, themIndices, 0, 2, -2, potentialItem.weights);
       }
 
-       //If item is after "that"
-      if(themIndices.length > 0){
+      // If token is near "that"
+      if (thatIndices.length > 0) {
         // Ex: take that apple
-        isAfterIndex(indicesLikelyItem, thatIndices, 0, 3, 1.5, itemNameWeights);
+        isAfterIndex(potentialItem.indices, thatIndices, 0, 3, 1.5, potentialItem.weights);
       }
-      log("itemNameWeights: " + itemNameWeights);
 
-      //The words with the most weight is likely part of the item name.
-      //Initialize, will be used to hold multiple strings
+      // If token is near "then"
+      if (thenIndices.length > 0) {
+        // Ex: take the sword then the apple
+        isAfterIndex(potentialItem.indices, thenIndices, 0, 3, 1.5, potentialItem.weights);
+
+        isBeforeIndex(potentialItem.indices, thenIndices, 0, 3, 1.5, potentialItem.weights);
+      }
+      log("potentialItem.weights: " + potentialItem.weights);
+
+      // Initialize holder for item tokens
       itemNameParts = [];
-      
-      //If weights in array pass threshold, push their respective name parts to a holder to join into final item string
-      itemNameWeights.forEach((weight,index)=>{
-        if(weight >= 4){
-          itemNameParts.push(likelyItemNames[index]);
+
+      // Find last index that passes weight threshold to know when last item tokens will be stored
+      for (let i = potentialItem.weights.length - 1; i >= 0; i--) {
+        if (potentialItem.weights[i] >= 4) {
+          lastWeightIndex = i;
+          break;
+        }
+      }
+
+      // Push potential items into holder if they pass weight threshold
+      potentialItem.weights.forEach((weight, index) => {
+        if (weight >= 4) {
+          itemNameParts.push(potentialItem.tokens[index]);
           log("itemNameParts: " + itemNameParts);
 
-          // Get the item amt index determined by proximity to item name from plr sentence if it exists
-          finalItemAmtIndex = findClosestNumberIndex(equipTextInput,indicesLikelyItem[index]); //returns -1 if no numbers exist 
-          log("finalItemAmtIndex: " + finalItemAmtIndex);
+          // Slice text chunk at potential item index for end of item testing
+          textChunk = newText.replace(">", "")
+            .trim()
+            .split(" ")
+            .slice(potentialItem.indices[index], potentialItem.indices[index] + 2)
+            .join(" ");
+          log("textChunk: " + textChunk);
 
+          // Test for end of item name to join and store item from holder
+          pattern = new RegExp(`\\b${potentialItem.tokens[index]}\\b\\s*(,|and|\\.)`, 'i');
+          itemEnd = textChunk.search(pattern);
+          log("itemEnd: " + itemEnd);
+
+          if (itemEnd !== -1 || index == lastWeightIndex) {
+            // Combine item name parts into final item name
+            finalItemName = itemNameParts.join(" ");
+            log("finalItemName: " + finalItemName);
+
+            // Clear the array after item is stored for next possible item
+            itemNameParts = [];
+
+            // Get item amt
+            itemAmt = findClosestNumberBefore(equipTextInput, potentialItem.indices[index]);
+
+            if (!itemAmt) {
+              itemAmt = 1;
+            }
+
+            // Get index if already existing item in player inv 
+            alreadyItemIndex = [];
+            alreadyItemIndex = indicesOf(state.playerInv.item, finalItemName);
+
+            // Increment item amt if already existing in inv
+            if (alreadyItemIndex) {
+              state.playerInv.amt[alreadyItemIndex] += itemAmt;
+              state.msgHolder = state.msgHolder + `🎒 +${itemAmt} ${state.playerInv.item[alreadyItemIndex]}\n`;
+            }
+            else {
+              // Else new item is stored
+              state.playerInv.item.push(finalItemName);
+              state.playerInv.amt.push(itemAmt);
+              state.msgHolder = state.msgHolder + `🎒 +${itemAmt} ${finalItemName}\n`;
+            }
+          }
         }
       });
-      
-      //If items pass the weighting, finalize item to store
-      if(itemNameParts.length > 0){
-        //After get item name parts, join into a single final item name string
-        itemNameFinal = itemNameParts.join(" "); //string
-        log("itemNameFinal: " + itemNameFinal);
 
-        //Verify the final item amt
-        //Default item amt if amt isnt mentioned by plr
-        if(finalItemAmtIndex == -1){
-          amtFinal = 1;
-        }else{
-          //If item amt was specified and found
-          amtFinal = Number(equipTextInput[finalItemAmtIndex]);
-        }
-        log("amtFinal: " + amtFinal);
+      //Update SC
+      storeInvToSC();
 
-        //Finally, check player inventory if item already exists and get its index
-        alreadyItemIndex = [];
-        alreadyItemIndex = indicesOf(state.playerInv.item,itemNameFinal);
-        log("alreadyItemIndex: " + alreadyItemIndex);
-        //If player already has item, increment item amt
-        if(alreadyItemIndex){
-          state.playerInv.amt[alreadyItemIndex] += amtFinal;
-        }
-        else{ //If player doesnt have the item
-          //new items are added to inventory
-          state.playerInv.item.push(itemNameFinal);
-          
-          //Corresponding new item amts
-          state.playerInv.amt.push(amtFinal);
-        }
-
-        //Update inv sc
-        storeInvToSC();
-
-        //TODO: Diversify text appendment
-        return text = text + " It remains in your possession."
-
-      }//end of finalize item
+      //TODO: Diversify text appendment
+      return text = text + " It remains in your possession."
 
     }//end of filtered array not empty
-  
+
   }//end of start equip
-  
+
   return text;
 }
 
@@ -3087,7 +3275,14 @@ function storeSkillsToSC(){
 
   //Format and display to sc Ex: Fireball (20 MP)
   skillSC.entry = state.playerSkills.name.map((skill, index) => `${skill} (Lvl ${state.playerSkills.lvl[index]}) (${state.playerSkills.cost[index]} MP)`).join("\n");
-  return true;
+
+  // Trim notes on char limit to prevent memory overfill
+  if (skillSC.description.length > 3000) {
+    halfIndex = Math.floor(skillSC.description.length / 2);
+    skillSC.description = skillSC.description.slice(0, halfIndex);
+
+    console.log("Trimming skillSC description to prevent memory overload.");
+  }
 }
 
 //To RETRIEVE skills from SC.
@@ -3212,6 +3407,15 @@ function storeTalentsToSC(){
 
   //Format and display to sc 
   talentSC.entry = state.playerTalents.name.map((talent, index) => `${talent} (Lvl ${state.playerTalents.lvl[index]}) (${state.playerTalents.cost[index]} EP)`).join("\n");
+
+  // Trim notes on char limit to prevent memory overfill
+  if (talentSC.description.length > 3000) {
+    halfIndex = Math.floor(talentSC.description.length / 2);
+    talentSC.description = talentSC.description.slice(0, halfIndex);
+
+    console.log("Trimming talentSC description to prevent memory overload.");
+  }
+
   return true;
 }
 
@@ -3660,7 +3864,6 @@ function executeSkill(){
 
       // Save the updated skill data to the storage container
       storeSkillsToSC();
-
 
       //Log skill lvl change in skill sc notes
       const skillSC = storyCards.find(sc => sc.title === "Player Skills")   
