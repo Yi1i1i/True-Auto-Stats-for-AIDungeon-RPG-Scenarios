@@ -1544,9 +1544,7 @@ function helpCommandInput_TAS(text){
     >>
     `
   }
-
-  // Clear command from context
-  return " ";
+  //todo: clear command from text
 }
 
 function helpCommandOutput_TAS(text){
