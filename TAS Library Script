@@ -38,7 +38,7 @@ function onInput_TAS(text) {
   //Check for locking
   text = lockScript(text);
 
-  text = helpCommandInput_TAS(text);
+  helpCommandInput_TAS(text);
 
   //Unlocking runs main()
   if (state.startScript == true && info.actionCount >= 0) {
