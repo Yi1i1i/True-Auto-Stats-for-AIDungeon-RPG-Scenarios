@@ -1067,70 +1067,217 @@ bodyParts = [
   "snout", "spikes", "stinger", "talon", "tail", "thorax", "trunk", "tusk", "whiskers", "wing"
 ];
 
-beginnerMageSpells = ["Aegis Spark", "Air Slash", "Arcane Bolt", "Astral Pulse", "Breeze Cutter", "Blink Step", "Cinder Pop", "Chain Zap", "Chilling Breeze", "Crystal Ray", "Cyclone Flick", "Dark Grasp", "Dimensional Skip", "Dust Surge", "Echo Bolt", "Eclipse Ray", "Ember Spark", "Enchanted Breeze", "Ether Grasp", "Ethereal Dash", "Fireball", "Flame Flicker", "Frost Spritz", "Frost Touch", "Frozen Grasp", "Gale Wave", "Glacial Spike", "Gravity Nudge", "Gust Levitate", "Healing Touch", "Hex Drizzle", "Holy Flicker", "Illusion Drift", "Illusory Veil", "Inferno Puff", "Ice Shard", "Lightning Jolt", "Light Beam", "Lunar Ripple", "Lumina Shot", "Mana Burst", "Mana Spark", "Mana Wave", "Minor Curse", "Minor Shield", "Molten Drip", "Mystic Bind", "Mystic Flick", "Mystic Missile", "Nature’s Whisper", "Pebble Blast", "Phase Shift", "Pocket Flame", "Protective Ward", "Radiant Glow", "Runic Bind", "Runic Shot", "Searing Drizzle", "Scorch Burst", "Seismic Tap", "Shadow Whisper", "Shock Tap", "Spark", "Spirit Mend", "Starburst Jolt", "Static Shock", "Stone Toss", "Storm Spark", "Sunflare Orb", "Temporal Tick", "Thunder Snap", "Tidal Ripple", "Verdant Glow", "Void Tendril", "Whispering Ember", "Wind Gust", "Wisp Summon", "Zephyr Strike"];
+classSkillParts = {
+  mage: [
+    "Anchor", "Arcane", "Ash", "Astral", "Barrier", "Bind", "Blast", "Blink",
+    "Blinding", "Bolt", "Burst", "Black", "Ball", "Chain", "Celestial", "Chilling", "Cosmic", "Crackling", "Crystal",
+    "Dim", "Drift", "Drizzle", "Echo", "Ember", "Enchanted", "Ether", "Field",
+    "Flick", "Flicker", "Flame", "Fire", "Frost", "Gale", "Glacier", "Grip",
+    "Inferno", "Ice", "Jolt", "Leash", "Lightning", "Lucid", "Lunar", "Mana",
+    "Mark", "Mist", "Mystic", "Nova", "Orb", "Phantom", "Portal", "Protect", "Pulse",
+    "Pyro", "Rainbow", "Radiant", "Red", "Ray", "Ring", "Runic", "Rush", "Seal", "Searing",
+    "Shadow", "Shift", "Shield", "Shock", "Shifting", "Sigil", "Silent", "Skip",
+    "Slash", "Smoke", "Snap", "Soul", "Spark", "Spectral", "Spirit", "Star",
+    "Static", "Step", "Storm", "Strike", "Subdue", "Surge", "Tap", "Temporal",
+    "Tide", "Trap", "Void", "Ward", "Wave", "Whispering", "Wind", "Zone"
+  ],
 
-beginnerHealerSkills = [
-  "Heal", "Mend", "Soothing Touch", "Restore", "First Aid", "Cure", "Refresh", "Recovery", 
-  "Light Mend", "Renew", "Purify", "Gentle Light", "Healing Wave", "Vitality Surge", "Rejuvenate", 
-  "Blessing", "Protect", "Minor Ward", "Holy Light", "Divine Touch", "Harmonic Flow", "Revitalize", 
-  "Aura Shield", "Cleansing Light", "Hope’s Embrace", "Guardian’s Whisper", "Spirit Balm", 
-  "Hallowed Glow", "Tranquil Pulse", "Vital Spark", "Graceful Recovery", "Lifeforce Drizzle", 
-  "Mercy’s Touch", "Serene Veil", "Blessed Whisper", "Alleviate", "Sanctuary", "Dew of Life"
-];
 
-beginnerSwordsmanSkills = [
-  "Slash", "Thrust", "Guard", "Parry", "Lunge", "Swipe", "Cleave", "Shield Bash", "Strike", 
-  "Shield Block", "Quick Cut", "Power Slash", "Aimed Strike", "Counterattack", "Heavy Blow", 
-  "Basic Combo", "Sword Stance", "Rolling Strike", "Piercing Thrust", "Wide Swing", "Quickdraw", 
-  "Guard Break", "Rising Slash", "Spin Attack", "Leg Sweep", "Charge", "Crushing Blow", 
-  "Counter Slash", "Berserk Swing", "Slash and Dash", "Power Thrust", "Defensive Stance", 
-  "Balanced Cut", "Fury Strike", "Serrated Strike", "Whirlwind Slash", "Combat Focus", "Blade Dance"
-];
+  healer: [
+    "Aid", "Alleviation", "Aura", "Balm", "Blessed", "Blessing", "Cleansing",
+    "Cure", "Divine", "Drizzle", "Embrace", "First", "Flow", "Gentle", "Glow",
+    "Graceful", "Guardian", "Hallow", "Heal", "Healing", "Holy", "Hope",
+    "Light", "Lifeforce", "Mend", "Mercy", "Minor", "Protect", "Pulse",
+    "Purify", "Recovery", "Refresh", "Rejuvenate", "Renew", "Restore",
+    "Revitalize", "Sanctuary", "Serene", "Shield", "Soothing", "Spark",
+    "Spirit", "Surge", "Touch", "Tranquil", "Vital", "Vitality", "Veil", "Whisper"
+  ],
 
-beginnerPriestSkills = [
-  "Holy Light", "Blessing", "Divine Touch", "Sacred Prayer", "Healing Prayer", "Purify", "Aura of Faith", 
-  "Radiant Heal", "Sanctify", "Spiritual Cleansing", "Light's Embrace", "Cleansing Wave", "Divine Shield", 
-  "Sacred Shield", "Spirit Mend", "Holy Barrier", "Grace of the Divine", "Renewing Touch", "Blessed Restoration", 
-  "Holy Radiance", "Spiritual Ward", "Faith's Embrace", "Light of Hope", "Sacred Grace", "Prayer of Renewal", 
-  "Healing Breath", "Divine Protection", "Soulbind", "Holy Strike", "Serenity", "Healing Blessing", "Divine Intervention",
-  "Protection of the Light", "Aura of Peace", "Luminous Heal", "Radiant Blessing", "Circle of Light", 
-  "Spiritual Resurgence", "Wings of the Spirit", "Faithful Resurgence", "Purifying Light", "Blessed Hands", 
-  "Spiritual Ward", "Graceful Touch"
-];
+  swordsman: [
+    "Attack", "Balanced", "Bash", "Blade", "Blow", "Break", "Charge", "Cleave",
+    "Combo", "Counter", "Crushing", "Cut", "Dash", "Defensive", "Draw", "Focus",
+    "Fury", "Guard", "Heavy", "Leg", "Lunge", "Parry", "Piercing", "Power",
+    "Quick", "Rising", "Roll", "Shield", "Slash", "Spin", "Stance", "Steady",
+    "Step", "Stike", "Strike", "Sweep", "Swing", "Sword", "Thrust", "Whirlwind",
+    "Wide"
+  ],
 
-beginnerTankSkills = [
-  "Shield Bash", "Taunt", "Defensive Stance", "Shield Block", "Block", "Guard", "Challenge", 
-  "Iron Will", "Fortify", "Protective Shield", "Threaten", "Roar", "Sturdy Stance", "Power Guard", 
-  "Guardian's Ward", "Heavy Defense", "Unyielding", "Damage Absorption", "Battle Cry", "Counter Guard", 
-  "Enduring Will", "Body Block", "Shield Wall", "Aggro Hold", "Crushing Counter", "Deflect", 
-  "Reckless Block", "Taunting Roar", "Revenge Strike", "Iron Wall", "Unbreakable", "Fortitude", 
-  "Toughened Flesh", "Battle Focus", "Momentum Shield", "Defensive Charge", "Block and Strike", 
-  "Shield Slam", "Bastion", "Unshakable Defense", "Stabilizing Guard", "Sustain", "Absorb Impact", 
-  "Guardian’s Protection", "Crippling Block", "Protective Stance", "Hold the Line"
-];
+  priest: [
+    "Aura", "Barrier", "Blessed", "Blessing", "Breath", "Circle", "Cleansing",
+    "Divine", "Embrace", "Faith", "Faithful", "Grace", "Graceful", "Hands",
+    "Heal", "Healing", "Hope", "Intervention", "Light", "Luminous", "Mend",
+    "Prayer", "Protection", "Radiance", "Radiant", "Renewal", "Renewing",
+    "Resurgence", "Sanctify", "Sanctuary", "Serenity", "Shield", "Soulbind",
+    "Spirit", "Spiritual", "Strike", "Touch", "Wave", "Ward", "Whisper",
+    "Wings"
+  ],
 
-beginnerPaladinSkills = [
-  "Holy Strike", "Blessing", "Divine Shield", "Radiant Heal", "Smite", "Sacred Ward", "Lay on Hands", 
-  "Shield of Light", "Aura of Protection", "Divine Strike", "Holy Wrath", "Protection Aura", 
-  "Judgment", "Holy Light", "Sacred Defense", "Righteous Blow", "Light's Embrace", "Cleansing Touch", 
-  "Avenging Strike", "Blessed Shield", "Divine Intervention", "Healing Aura", "Divine Grace", 
-  "Retribution", "Sacred Cleansing", "Seal of Faith", "Divine Smite", "Holy Barrier", "Aura of Faith", 
-  "Justice Strike", "Shield Bash", "Blessed Hammer", "Divine Healing", "Crusader's Might", "Radiant Ward", 
-  "Shield of Justice", "Guardian's Blessing", "Faithful Touch", "Healing Light", "Aura of Courage", 
-  "Purifying Flame", "Judgment of the Light", "Holy Fury", "Righteous Protection", "Spirit of Valor", 
-  "Sacred Strike", "Beacon of Light", "Divine Hammer", "Light Infusion"
-];
+  tank: [
+    "Absorption", "Aggro", "Anchor", "Bash", "Bastion", "Battle", "Block",
+    "Body", "Break", "Charge", "Challenge", "Counter", "Crippling", "Cry",
+    "Defensive", "Deflect", "Enduring", "Flesh", "Focus", "Fortify", "Fortitude",
+    "Guard", "Guardian", "Hammer", "Hold", "Impact", "Iron", "Line", "Momentum",
+    "Protection", "Protective", "Reckless", "Revenge", "Roar", "Shield", "Slam",
+    "Stabilizing", "Stance", "Strike", "Sturdy", "Sustain", "Taunt", "Threaten",
+    "Toughened", "Unbreakable", "Unshakable", "Unyielding", "Wall", "Ward", "Will"
+  ],
 
-beginnerHeroSkills = [
-  "Power Strike", "Quick Slash", "Shield Bash", "Healing Touch", "Agility Boost", "Charge", "Energy Burst",
-  "Flame Lash", "Ice Leap", "Thunder Clap", "Defensive Stance", "Sprint", "Vigilance", "Life Leech",
-  "Cloak of Shadows", "Fury Strike", "Fireball", "Ice Spike", "Wind Dash", "Stone Fist", "Heal Pulse",
-  "Arcane Blast", "Speed Burst", "Shield Wall", "Rallying Cry", "Smash", "Ranged Shot", "Elemental Fist",
-  "Healing Aura", "Flash Step", "Summon Familiar", "Poison Strike", "Haste", "Battle Roar", "Guardian Shield",
-  "Magnetic Pull", "Water Walk", "Gravity Slam", "Spirit Bind", "Invisibility", "Flash Heal", "Stunning Strike",
-  "Flare", "Mana Shield", "Blinding Flash", "Charge Strike", "Cleansing Wave", "Power Shield", "Summon Beast",
-  "Dragon Breath", "Quick Heal", "Light’s Grace", "Force Push", "Healing Wind", "Thunder Strike", "Arcane Shield"
-];
+  paladin: [
+    "Aura", "Avenging", "Barrier", "Beacon", "Blessed", "Blessing", "Blow",
+    "Cleansing", "Courage", "Crusader", "Defense", "Divine", "Embrace", "Faith",
+    "Faithful", "Flame", "Grace", "Hammer", "Hands", "Heal", "Healing", "Holy",
+    "Infusion", "Intervention", "Judgment", "Lay", "Light", "Might",
+    "Protection", "Radiance", "Radiant", "Retribution", "Righteous", "Sacred",
+    "Seal", "Shield", "Smite", "Spirit", "Strike", "Touch", "Valor", "Ward",
+    "Wrath"
+  ],
+
+  hero: [
+    "Agility", "Arcane", "Aura", "Battle", "Beast", "Bind", "Blinding", "Blast",
+    "Boost", "Breath", "Burst", "Charge", "Clap", "Cleansing", "Cloak", "Cry",
+    "Dash", "Defensive", "Dragon", "Elemental", "Familiar", "Fireball", "Fist",
+    "Flash", "Flare", "Force", "Fury", "Gravity", "Guard", "Heroic", "Haste", "Heal",
+    "Healing", "Ice", "Invisibility", "Jump", "Leap", "Leech", "Light", "Mana",
+    "Magnetic", "Might", "Poison", "Power", "Protection", "Pull", "Push",
+    "Quick", "Rallying", "Roar", "Shield", "Slash", "Smash", "Speed", "Spirit",
+    "Spike", "Sprint", "Step", "Stone", "Strike", "Summon", "Thunder", "Touch",
+    "Walk", "Ward", "Wave", "Wind", "Wings"
+  ],
+
+  assassin: [
+  "Ambush", "Blade", "Blink", "Choke", "Cloak", "Cripple", "Cut", "Dash", "Dagger",
+  "Death", "Drift", "Escape", "Fang", "Fade", "Feint", "Flick", "Gloom", "Lacerate",
+  "Mark", "Night", "Poison", "Pounce", "Quick", "Rush", "Shade", "Shadow", "Shiv",
+  "Silent", "Slash", "Slip", "Smoke", "Snare", "Sneak", "Speed", "Spine", "Spin",
+  "Stab", "Step", "Strike", "Trip", "Twist", "Veil", "Venom", "Vanish", "Wound"
+  ],
+
+  archer: [
+  "Aim", "Arrow", "Blast", "Blink", "Bolt", "Burst", "Camouflage", "Charge", "Dash",
+  "Draw", "Eagle", "Feather", "Flare", "Focus", "Gale", "Glide", "Hit", "Leap",
+  "Mark", "Momentum", "Multi", "Nock", "Pierce", "Pin", "Quick", "Quiver", "Rain",
+  "Rapid", "Recurve", "Release", "Ricochet", "Rush", "Snipe", "Speed", "Strike",
+  "Volley", "Wind", "Wing", "Zoom"
+  ],
+
+  alchemist: [
+  "Acid", "Amber", "Aether", "Arc", "Brew", "Burst", "Catalyst", "Cauldron", "Charge",
+  "Compound", "Concoction", "Corrode", "Crackle", "Dust", "Elixir", "Essence", "Extract",
+  "Fume", "Flask", "Fusion", "Gas", "Glow", "Ignite", "Infuse", "Mix", "Mist",
+  "Mixture", "Potion", "Reagent", "Resin", "Smoke", "Solution", "Spark", "Spill",
+  "Splash", "Spore", "Steam", "Tincture", "Toxin", "Transmute", "Vapor", "Vial", "Volatile"
+  ],
+
+  reincarnate: [
+  "Ancestral", "Awakening", "Beyond", "Binding", "Bloom", "Call", "Cycle", "Departed", "Echo",
+  "Ember", "Essence", "Fade", "Flicker", "Flow", "Ghost", "Grave", "Life", "Light",
+  "Memory", "Phoenix", "Rebirth", "Recall", "Reform", "Reflesh", "Renew", "Reshape", "Resoul",
+  "Revive", "Rise", "Rift", "Return", "Shimmer", "Soul", "Spirit", "Trace", "Transcend",
+  "Undying", "Vestige", "Whisper"
+  ],
+
+  summoner: [
+  "Arc", "Avatar", "Beast", "Bind", "Bond", "Call", "Channel", "Conduit", "Construct",
+  "Doppel", "Echo", "Elemental", "Entity", "Familiar", "Fiend", "Form", "Gate", "Ghoul",
+  "Golem", "Guard", "Manifest", "Phantom", "Portal", "Projection", "Servant", "Shade", "Shadow",
+  "Sigil", "Simulacrum", "Spirit", "Spawn", "Specter", "Summon", "Totem", "Trace", "Twin", "Wisp"
+  ],
+
+  necromancer: [
+  "Abyss", "Bind", "Black", "Blood", "Bone", "Chant", "Corrupt", "Curse", "Dark", "Decay",
+  "Defile", "Doom", "Dread", "Echo", "Ghast", "Ghoul", "Grave", "Grim", "Haunt", "Hex",
+  "Hollow", "Husk", "Lich", "Mark", "Mire", "Mourn", "Necro", "Oblivion", "Plague", "Raise",
+  "Reap", "Rot", "Ruin", "Sever", "Shade", "Shadow", "Shroud", "Sinister", "Skull", "Soul",
+  "Specter", "Spine", "Spirit", "Torment", "Undead", "Unholy", "Vessel", "Wither", "Wraith"
+  ],
+
+  fighter: [
+  "Bash", "Blow", "Break", "Brute", "Charge", "Clash", "Combo", "Counter", "Crack", "Crash",
+  "Crush", "Drive", "Fist", "Flurry", "Focus", "Force", "Hammer", "Hook", "Jab", "Lunge",
+  "Momentum", "Overwhelm", "Pummel", "Push", "Rage", "Rampage", "Rip", "Rush", "Shatter",
+  "Shock", "Shove", "Smash", "Snap", "Strike", "Stun", "Sweep", "Swing", "Thrust", "Uppercut",
+  "Vault", "Vigor", "Warcry", "Wild", "Wreck"
+  ],
+
+  warrior: [
+  "Strike", "Slash", "Crush", "Guard", "Block", "Bash", "Roar", "Charge", "Blade", "Stance",
+  "Clash", "Cleave", "Thrust", "Swing", "Break", "Shield", "Fury", "Grit", "Rush", "Lunge",
+  "Shout", "Steel", "Brave", "Armor", "Push", "Rampart"
+],
+
+  berserker: [
+    "Rage", "Frenzy", "Blood", "Smash", "Bite", "Tear", "Wild", "Fury", "Crush", "Break",
+    "Rush", "Howl", "Rip", "Roar", "Charge", "Madness", "Savage", "Brawl", "Maul", "Unleash",
+    "Blow", "Thrash", "Rampage", "Strike", "Brute"
+  ],
+
+  bard: [
+    "Note", "Chorus", "Song", "Verse", "Melody", "Ballad", "Hymn", "Echo", "Tune", "Rhythm",
+    "Vibe", "Cadence", "Sound", "Charm", "Voice", "Chime", "Strum", "Lute", "Inspire", "Serenade",
+    "Refrain", "Duet", "Whistle", "Harmony", "Resonance"
+  ],
+
+  gunfighter: [
+    "Shot", "Blast", "Bullet", "Shell", "Aim", "Reload", "Trigger", "Fire", "Ricochet", "Scope",
+    "Barrel", "Click", "Chamber", "Mark", "Target", "Flash", "Bang", "Spray", "Rapid", "Snap",
+    "Burst", "Reload", "Sight", "Jolt", "Tactical"
+  ],
+
+  thief: [
+    "Steal", "Sneak", "Pick", "Slip", "Swipe", "Dagger", "Shadow", "Cloak", "Poison", "Lurk",
+    "Backstab", "Hide", "Snatch", "Trap", "Dart", "Step", "Blind", "Trip", "Strike", "Silence",
+    "Escape", "Hook", "Cut", "Feint", "Vanish"
+  ],
+
+  monk: [
+    "Palm", "Focus", "Step", "Breath", "Flow", "Strike", "Meditate", "Center", "Balance", "Kick",
+    "Chi", "Form", "Discipline", "Wave", "Stillness", "Sense", "Push", "Parry", "Guard", "Harmony",
+    "Will", "Spirit", "Motion", "Path", "Grace"
+  ],
+
+  barbarian: [
+    "Smash", "Break", "Bash", "Roar", "Shatter", "Howl", "Fury", "Wild", "Swing", "Tear",
+    "Rip", "Rage", "Wreck", "Brute", "Rampage", "Stomp", "Crack", "Rush", "Crash", "Bellow",
+    "Strike", "Blow", "Trample", "Slam", "Frenzy"
+  ],
+
+  ranger: [
+    "Arrow", "Shot", "Aim", "Mark", "Trap", "Snare", "Track", "Scout", "Step", "Focus",
+    "Edge", "Strike", "Pull", "Camouflage", "Eagle", "Feather", "Hawk", "Wind", "Leap", "Bow",
+    "Dash", "Trail", "Flare", "Rapid", "Hide"
+  ],
+
+  wizard: [
+    "Arcane", "Blast", "Bolt", "Spark", "Spell", "Focus", "Scroll", "Wave", "Ward", "Fire",
+    "Cast", "Mystic", "Ray", "Beam", "Flicker", "Shield", "Mana", "Surge", "Flash", "Storm",
+    "Burn", "Channel", "Essence", "Bind", "Vortex"
+  ],
+
+  sorcerer: [
+    "Hex", "Curse", "Pulse", "Inferno", "Charm", "Arcana", "Energy", "Ignite", "Whirl", "Nova",
+    "Chaos", "Sigil", "Rune", "Blast", "Scorch", "Mystic", "Flow", "Storm", "Flicker", "Focus",
+    "Burst", "Spell", "Power", "Sear", "Glow"
+  ],
+
+  shaman: [
+    "Totem", "Spirit", "Storm", "Echo", "Chant", "Vision", "Earth", "Sky", "Flame", "Rain",
+    "Wind", "Thunder", "Stone", "Call", "Ritual", "Wave", "Pulse", "Crack", "Snap", "Root",
+    "Aura", "Balance", "Nature", "Shiver", "Drum"
+  ],
+
+  rogue: [
+    "Stab", "Sneak", "Step", "Shadow", "Poison", "Silence", "Mark", "Twist", "Jab", "Flick",
+    "Trip", "Feign", "Cloak", "Dagger", "Strike", "Trick", "Lurk", "Dash", "Hook", "Dart",
+    "Swipe", "Back", "Ambush", "Cut", "Vanish"
+  ],
+
+  druid: [
+    "Root", "Bloom", "Branch", "Wild", "Feral", "Thorn", "Spore", "Seed", "Bark", "Cycle",
+    "Call", "Shape", "Fang", "Nature", "Leaf", "Spirit", "Grow", "Sun", "Moon", "Rain",
+    "Howl", "Shroud", "Pulse", "Harmony", "Flora"
+  ]
+
+};
 
 const upgradeTier1 = [
   "Bright", "Formed", "Gentle", "Greater", "Light", 
@@ -1168,36 +1315,23 @@ const upgradeTier5 = [
   "Starwoven", "Temporal", "Transcendent", "Vengeful", "Voidtouched"
 ];
 
-const intensityLevels = [
-  // Level 1 – Barely noticeable
-  ["Faint", "Soft", "Dim", "Weak", "Mild", "Gentle", "Whispery", "Light", "Fragile", "Bad"],
-
-  // Level 2 – Low strength
-  ["Subtle", "Thin", "Timid", "Quiet", "Slow", "Shy", "Pale", "Dull", "Hazy", "Uncertain"],
-
-  // Level 3 – Noticeable
-  ["Clear", "Steady", "Present", "Visible", "Moderate", "Discernible", "Stable", "Measured", "Defined", "Firm"],
-
-  // Level 4 – Solid
-  ["Strong", "Confident", "Sharp", "Focused", "Bold", "Crisp", "Loud", "Brisk", "Vivid", "Determined"],
-
-  // Level 5 – Potent
-  ["Powerful", "Intense", "Energetic", "Charged", "Concentrated", "Robust", "Active", "Amplified", "Directed", "Deep"],
-
-  // Level 6 – Forceful
-  ["Forceful", "Pressing", "Gripping", "Heated", "Flowing", "Bursting", "Pulsing", "Eager", "Burning", "Bright"],
-
-  // Level 7 – Fierce
-  ["Fierce", "Driving", "Boiling", "Surging", "Piercing", "Radiating", "Lashing", "Vibrating", "Thrumming", "Relentless"],
-
-  // Level 8 – Unstable
-  ["Volatile", "Unleashed", "Feral", "Erratic", "Storming", "Howling", "Overcharged", "Churning", "Expanding", "Straining"],
-
-  // Level 9 – Overwhelming
-  ["Overwhelming", "Immense", "Crushing", "Ripping", "Searing", "Unstoppable", "Torrential", "Saturating", "Shattering", "Wild"],
-
-  // Level 10 – Mythic
-  ["Mythic", "Godlike", "Cosmic", "Primordial", "Eternal", "Infinite", "Worldbreaking", "Uncontainable", "Transcendent", "Absolute"]
+const intensityTier = [
+  "Newbie level",       
+  "Novice level",     
+  "Rookie level",   
+  "Student level",   
+  "Intermediate level",     
+  "Skilled level", 
+  "Talented level",
+  "Seasoned level",
+  "Proficient level",
+  'Experienced level',
+  'Advanced level',
+  'Senior level',
+  'Expert level',
+  'Ultra level',
+  'Legendary level',
+  'Godly level'
 ];
 
 const skillPower1 = [
@@ -2791,6 +2925,7 @@ statKeys = ["lvl", "exp", "hp", "mp","ep", "atk", "def", "spd", "lck", "intl"];
 
 //NOTE: Players stats will be stored in a sc. CREATE initial stats. RETRIEVE from or STORE to player stats: SC -> <- state.playerstats
 
+//todo: add class, race, and occupation to stats
 //Function to create new random player stats
 function newPlayerStats(){  
   //Get a random max level
@@ -3999,7 +4134,7 @@ function upgradePlayerTalents(text) {
 
 ///////////////////////////////////////////////////////////////////////////////////
 
-//Initialize player skills
+// Initialize player skills
 state.playerSkills = state.playerSkills || {
   name: [],
   lvl: [],
@@ -4009,58 +4144,66 @@ state.playerSkills = state.playerSkills || {
 ///Player skills will be stored in an sc. CREATE initial sc. Skills will STORE TO or RETREIVE FROM sc.
 
 // Function to create new class skills for player and store to their skills
-function newClassSkills(classString,skillArray){
-  plotEssentials = state.memory.context.toLowerCase();
-  if(plotEssentials.includes(classString + " class")){
-    state.playerSkills.name = [
-      skillArray[randomInt(0,skillArray.length-1)],skillArray[randomInt(0,skillArray.length-1)],skillArray[randomInt(0,skillArray.length-1)]
-    ];
-    state.playerSkills.lvl = [
-      randomInt(0,3),
-      randomInt(0,3),
-      randomInt(0,3)
-    ];
-    state.playerSkills.cost = [
-      randomInt(10,40),
-      randomInt(10,40),
-      randomInt(10,40)
-    ];
+function createClassSkills() {
+  const plotEssentials = state.memory.context.toLowerCase();
 
+  // Get player class from plot essentials
+  const regex = /(\w+)\s+class/i;
+  const match = plotEssentials.match(regex);
+  let classString = null;
+  if (match) {
+    classString = match[1];
+  }
+
+  if (classString && classSkillParts[classString]) {
+    // Ensure player skills starts off empty
+    state.playerSkills.name = [];
+    state.playerSkills.lvl = [];
+    state.playerSkills.cost = [];
+
+
+    // Make 3 starting skills
+    for (let i = 0; i < 3; i++) {
+      // Pick two different random skill parts to combine
+      let part1, part2;
+      do {
+        part1 = classSkillParts[classString][randomInt(0, classSkillParts[classString].length-1)];
+        part2 = classSkillParts[classString][randomInt(0, classSkillParts[classString].length-1)];
+      } while (part1 === part2);
+
+      const createdSkill = `${part1} ${part2}`;
+
+      state.playerSkills.name.push(createdSkill);
+      state.playerSkills.lvl.push(randomInt(0, 9));
+      state.playerSkills.cost.push(randomInt(10, 40));
+    }
+
+    // Store skills after all created
     storeSkillsToSC();
   }
 }
 
-//Always CREATE initial sc if none.
+// Always CREATE initial sc if none.
 function createIfNoSkillSC(){
   //If "Player Skills" card doesn't exist, create it
   if (!storyCards.find(sc => sc.title === "Player Skills")) {
     addStoryCard("Player Skills", "Blank", "Player Stats");
 
-    //Fetch SC and give it a description
+    // Fetch SC and give it a description
     const skillSC = storyCards.find(sc => sc.title === "Player Skills")   
     skillSC.description = "Format for Modifying: SkillName (LVL) (MP), etc.";
 
-    //Mage, Healer, Swordsman, Priest, Tank, Paladin, Hero, Custom
-    //Classes and the skills they start with
-    newClassSkills('mage',beginnerMageSpells);
-    newClassSkills('sorcerer', beginnerMageSpells);
-    newClassSkills('healer',beginnerHealerSkills);
-    newClassSkills('swordsman',beginnerSwordsmanSkills);
-    newClassSkills('priest',beginnerPriestSkills);
-    newClassSkills('tank',beginnerTankSkills);
-    newClassSkills('paladin',beginnerPaladinSkills);
-    newClassSkills('hero',beginnerHeroSkills);
-    //todo: simplify
-
+    // Get player class and create the skills they start with
+    createClassSkills();  
   } 
 }
 
 //To STORE skill to sc
 function storeSkillsToSC(){
-  //Fetch skill sc
+  // Fetch skill sc
   const skillSC = storyCards.find(sc => sc.title === "Player Skills");
 
-  //Format and display to sc Ex: Fireball (20 MP)
+  // Format and display to sc Ex: Fireball (20 MP)
   skillSC.entry = state.playerSkills.name.map((skill, index) => `${skill} (Lvl ${state.playerSkills.lvl[index]}) (${state.playerSkills.cost[index]} MP)`).join("\n");
 
   // Trim notes on char limit to prevent memory overfill
@@ -4403,6 +4546,19 @@ function feedStrgToContext(text){
   return text;
 }
 
+// Translate number level to english tier
+function getTier(number){
+  toTier = Math.floor(number/10);
+
+  if(toTier < intensityTier.length){
+    return intensityTier[toTier];
+  }
+  else{
+    return intensityTier[10];
+  }
+}
+
+
 // Checks for "you + actions" that require items, talents, or skills. Checks if player has something to fulfill it and executes result along with text result
 function detectStorageCallActions(text) {
   startAction = false;
@@ -4564,12 +4720,14 @@ function detectStorageCallActions(text) {
       allItems = allItems.join(", ");
 
       state.playerTalents.name.forEach((itm, index) => {
-        allTalents.push(`${state.playerTalents.name[index]}`);
+        talentTier = getTier(state.playerTalents.lvl[index]);
+        allTalents.push(`${talentTier} ${state.playerTalents.name[index]}`);
       })
       allTalents = allTalents.join(", ");
 
       state.playerSkills.name.forEach((itm, index) => {
-        allSkills.push(`${state.playerSkills.name[index]}`);
+        skillTier = getTier(state.playerSkills.lvl[index]);
+        allSkills.push(`${skillTier} ${state.playerSkills.name[index]}`);
       })
       allSkills = allSkills.join(", ");
       
@@ -5381,4 +5539,4 @@ function detectScout(text){
 //add exp reward for killing
 //add reading
 //exercising to increase atk and spd and def
-//add armor, you put the helment "on your head"
+//add armor, you put the helmet "on your head"
