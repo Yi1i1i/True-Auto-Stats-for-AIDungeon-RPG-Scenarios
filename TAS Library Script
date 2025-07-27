@@ -4,7 +4,7 @@
 
 // Credits
   // BinKompliziert - Idea for Capitalization weighting for skill learning
-  // jackoneill2443 - Idea for modifying player input to show stat results
+  // jackoneill2443 - Idea for input flavor text to show stat results
   // LewdLeah - General Scripting Knowledge
 //
 
@@ -13,14 +13,10 @@ onLibrary_TAS();
 
 // LIBRARY HOOK
 function onLibrary_TAS() {
-  // UNLOCK SCRIPT FOR DEBUG (Comment out to turn off)
-  state.startScript = true;
-  log("state.startScript: " + state.startScript);
-
   // Initialize variables
   if (state.startScript == undefined) {
-    // Script is naturally locked
-    state.startScript = false;
+    // Script is naturally unlocked
+    state.startScript = true;
   }
   if (state.turnCount == undefined) {
     state.turnCount = 0;
@@ -28,24 +24,23 @@ function onLibrary_TAS() {
   if (state.msgHolder == undefined){
     state.msgHolder = "";
   }
+  
+  log("state.startScript: " + state.startScript);
 }
 
 // INPUT HOOK
 function onInput_TAS(text) {
-  //Check for unlocking
-  text = unlockScript(text);
+  // Detect and execute script unlock or lock
+  text = scriptSwitch_TAS(text);
 
-  //Check for locking
-  text = lockScript(text);
+  text = helpCommandInput_TAS(text);
 
-  helpCommandInput_TAS(text);
-
-  //Unlocking runs main()
+  // Unlocking runs main
   if (state.startScript == true && info.actionCount >= 0) {
     state.inputCount += 1;
     log("state.inputCount: " + state.inputCount);
 
-    //Create story cards if none
+    // Create story cards if none
     createIfNoStatSC();
     createIfNoInvSC();
     createIfNoTalentSC();
@@ -60,10 +55,12 @@ function onInput_TAS(text) {
     retrieveModifiersFromSC()
 
     text = detectStoreInv(text);
+    
+    text = detectGiving(text);
 
     text = detectAttack(text);
 
-    text = detectPlrActionsCallingStorage(text);
+    text = detectStorageCallActions(text);
 
     text = detectDodge(text);
 
@@ -75,19 +72,30 @@ function onInput_TAS(text) {
 
     text = upgradePlayerSkills(text);
 
+    text = upgradePlayerTalents(text);
+
     text = talentLearningProcess(text);
 
     text = warnPlayerHealth(text);
 
-  }//end of main()
+  }//end of main
 
   return text;
 }
 
 // CONTEXT HOOK
 function onContext_TAS(text){
-  text = removeAngleText(text);
-  
+  if (state.startScript == true && info.actionCount >= 0) {
+    text = feedInvToContext(text);
+
+    text = feedStrgToContext(text);
+
+    text = removeAngleText(text);
+
+    //log(text);
+
+  }//end of main
+
   return text;
 }
 
@@ -95,7 +103,6 @@ function onContext_TAS(text){
 function onOutput_TAS(text) {
   text = helpCommandOutput_TAS(text);
 
-  // start of main()
   if (state.startScript == true && info.actionCount >= 0) {
     state.outputCount += 1;
     log("state.outputCount: " + state.outputCount);
@@ -137,12 +144,14 @@ function onOutput_TAS(text) {
     retrieveModifiersFromSC()
     //Final mods store back to SC in correct formatting
     storeModifiersToSC();
-
+    
+    // Message Handler
     state.message = state.msgHolder;
     state.msgHolder = "";
 
     turnCounter();
-  }//end of main()
+  }//end of main
+
   return text;
 }
 
@@ -156,10 +165,44 @@ selfWords = ["me", "my", "myself", "mine", "your", "yourself", "yours", "us", "o
 castWords = [
   "activate", "amplify", "bind", "blast", "boost", "burst", "cast", "casting", "channel", "charge", "channeling", "command", "commanding", "conjure", 
   "create", "creating", "detonate", "enchant", "enchanting", "evoke", "explode", 
-  "expel", "exude", "flare", "flow", "form", "gather", "gathering", "glow", "harness", "hex", "ignite", "infuse", "invoke", "invoking", "launch", "manifest", "project", "projecting", "pulse","perform", "quicken", "release", "shape", "shift", "shoot", "shooting", "summon", "summoning", "transform", "transforming", "transmute", "trigger", "unbind", "unleash"
+  "expel", "exude", "flare", "flow", "form", "gather", "gathering", "glow", "harness", "hex", "ignite", "infuse", "invoke", "invoking", "launch", "manifest", "project", "projecting", "pulse", "perform", "quicken", "release", "shape", "shift", "summon", "summoning", "transform", "transforming", "transmute", "trigger", "unbind", "unleash"
 ];
 
-talentWords = ["build", "barter", "cook", "craft", "drive", "fish", "fly", "hunt", "forge", "operate", "repair", "swim", "sail", "scavenge", "sneak"];
+talentWords = [
+  // Combat / Stealth
+  "ambush", "argue", "bluff", "confuse", "counterfeit", "deceive", "defend", "disarm", "extinguish",
+  "intimidate", "jam", "lockpick", "neutralize", "pierce", "scare", "snipe", "sneak", "snare", "spy", "steal", "shoot", "shooting",
+
+  // Crafting / Construction
+  "assemble", "barter", "bind", "boobytrap", "brew", "brewmaster", "build", "butcher", "camber", "camouflage", "carve",
+  "channel", "chisel", "clean", "compose", "concoct", "craft", "debug", "decrypt", "decipher", "distill", "dismantle",
+  "engineer", "engrave", "fabricate", "fasten", "filter", "fletch", "forge", "frame", "glaze", "grind", "harness",
+  "identify", "imitate", "inlay", "inscribe", "insulate", "invert", "knit", "launder", "leverage", "liquefy", "mark",
+  "mason", "mend", "mix", "mold", "muffle", "optimize", "patch", "polish", "pressurize", "prime", "process", "program",
+  "purify", "quench", "reconstruct", "recycle", "refine", "reinforce", "remix", "repair", "reverse", "rivet", "salvage",
+  "scribe", "seal", "sealant", "sharpen", "simulate", "sketch", "smelt", "smith", "smudge", "stabilize", "synchronize",
+  "tailor", "temper", "tie", "tinker", "treat", "trace", "transmute", "trap", "tune", "upcycle", "vacuum", "vent",
+  "wash", "weave", "weld", "weld-seal", "whittle",
+
+  // Exploration / Movement
+  "balance", "climb", "drive", "eavesdrop", "empathize", "explore", "fish", "fly", "forage", "gauge", "harvest",
+  "hunt", "intercept", "map", "mine", "navigate", "operate", "orchestrate", "override", "ride", "scavenge", "search",
+  "secure", "stow", "sustain", "tag", "track", "transfer", "traverse", "use", "wield", "wrangle",
+
+  // Social / Mental
+  "appraise", "arbitrate", "communicate", "claim", "convince", "coordinate", "describe", "diagnose", "empathize",
+  "evaluate", "gesture", "justify", "mediate", "memorize", "overhear", "perceive", "persuade", "present", "procure",
+  "reveal", "soothe", "simulate", "scribe", "verify",
+
+  // Technical / Scientific
+  "calculate", "debug", "decrypt", "diagnose", "engineer", "fabricate", "filter", "invert", "jam", "leverage", "liquefy", "map",
+  "optimize", "orchestrate", "patch", "process", "program", "purify", "quench", "reconstruct", "recycle", "refine",
+  "reinforce", "remix", "repair", "reverse", "salvage", "sealant", "simulate", "synchronize", "tag", "tinker",
+  "transmute", "upcycle", "vacuum", "vent", "weld", "weld-seal",
+];
+
+
+
 
 learnWords = [
   "learn", "learning", "practice", "practicing", "spend time", "study", "studying", "train", "training", "read", "reading", "focus", "find", "research", "researching"
@@ -172,6 +215,20 @@ equipWords = [
 invWords = [
   "bag", "backpack", "body", "case", "chest", "collection",  "container", "crates", "equipment", "hands", "hand", "holder", "holdings", "inventory", "items", "legs", "loot", "pack", "pocket", "pouch", "rucksack", "sack", "satchel", "storage", "supplies", "tote"
 ];
+
+const itemGainPhrases = [
+  "It enters your possession.",
+  "It holds there.",
+  "You now have it.",
+  "It's now yours.",
+  "It sits tight in your inventory.",
+  "It sits securely in your inventory.",
+  "It lays among your belongings.",
+  "It becomes part of your inventory.",
+  "It now belongs to you."
+];
+
+giveWords = ["deliver", "fork", "gift", "give", "hand", "pay", "sell", "toss"];
 
 numWords = [
   "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
@@ -274,27 +331,32 @@ greatHealWords = ["superior", "life elixir", "antibacterial", "vitality", "great
 powerfulHealWords = ["immortality", "crystal", "revival", "divine", "surgery","enchanted","powerful","extremely","extreme","mystical","legendary"
 ];
 
-enterWords = ["crawl", "drift", "enter", "fall", "get", "go", "head", "lay", "lie down", "make", "move", "nap", "prepare", "proceed", "slip", "sleep", "settle", "sink", "snuggle", "step", "surrender", "take", "turn in", "transition"];
-
-restingWords = ["catnap", "doze", "hibernate", "nap", "relax", "rest", "sleep", "slumber", "asleep"];
-
-lightRestWords = ["brief", "fleeting", "minor", "momentary", "passing", "quick", "relax", "short", "small", "tiny", "transient", "breath", "breathe", "breathing"];
-
-moderateRestWords = ["catnap", "doze", "light sleep", "nap", "power nap", "repose", "rest", "siesta", "snooze", "rest"];
-
-fullRestWords = ["deep", "deeply", "hibernation", "hibernate", "long", "prolonged", "rejuvenating", "sleep", "slumber", "sound", "uninterrupted"];
-
 dialoguePhrases = ["You say", "You tell", "You add", "You ask", "You reply", "You state", "You note", "You claim", "You remark", "You mutter", "You insist", "You whisper", "You mention", "You declare", "You respond", "You warn", "You said", "You see", "You hear"];
 
-realizePhrases = ["It becomes apparent", "It becomes clear that", "It clicks that", "You start to realize", "You come to realize", "You come to understand", "You feel that", "You grasp the fact that", "You notice", "You realize", "You recognize that", "You see that", "It dawns on you that"];
+realizePhrases = ["It becomes apparent", "It becomes clear that", "It clicks that", "You start to realize", "You come to realize", "You come to understand", "You feel that", "You grasp the fact that", "You notice", "You realize", "You recognize that", "You see that", "It dawns on you that", "You realize in reality, "];
 
-becauseYouPhrases = ["because you", "since you", "as you", "given that you", "considering that you", "owing that you", "on account that you", "by virtue that you", "seeing as you", "thanks that you", "as a result that you", "in light that you", "for the reason that you", "in view that you", "due to the fact that you"
+notEnoughPhrases = [
+  "You don't have enough [Stat] for [Thing].",
+  "Your [Stat] falls short for [Thing].",
+  "You try, but your [Stat] isn't quite enough for [Thing].",
+  "You feel your [Stat] falter before [Thing].",
+  "There's not enough [Stat] in you to handle [Thing].",
+  "Your [Stat] gives out before [Thing] can take shape.",
+  "You strain, but lack the [Stat] needed for [Thing].",
+  "Attempting [Thing] drains your limited [Stat].",
+  "You reach for [Thing], but your [Stat] can't follow.",
+  "[Thing] demands more [Stat] than you currently hold.",
+  "Your [Stat] fizzles out when attempting [Thing].",
+  "You push toward [Thing], but your [Stat] says no.",
+  "You realize [Thing] is just beyond your [Stat]'s reach.",
+  "The moment calls for [Thing], but your [Stat] isn't there.",
+  "You spend effort for [Thing], but your [Stat] slips away.",
+  "Not enough [Stat] courses through you for [Thing].",
+  "You hesitate — lacking the [Stat] for [Thing].",
+  "You falter, [Stat] insufficient to fuel [Thing].",
+  "There's a gap between your [Stat] and what [Thing] needs.",
+  "A flicker of [Thing] exerts itself, but your [Stat] can’t sustain it."
 ];
-
-assumedWrongPhrases = ["assumed competence", "assumed preparation", "assumed you had on hand what you didn't", "didn't harness existent skills", "didn't harness existent talents", "didn't specify proficiency", "didn't specify reasonably", "expected the air to do something", "failed to secure necessary resources", "forgot to bring the right tools", "had a moment of inexperience", "missed key details", "neglected to prepare properly", "neglected proper planning", "overestimated your readiness", "rushed past your experience", "skipped on clarity", "skipped the resource", "underestimated the necessities", "underprepared", "weren't thorough enough", "were ill-equipped", "were not clear", "were too hasty"];
-
-
-slightlyWorseResults = ["the outcome was close, but mostly off the mark", "the outcome was mostly underwhelming", "the outcome was less than ideal", "the outcome was disappointing", "the outcome was not as good as anticipated", "the result didn't quite measure up", "the result fell short of expectations", "the result was below the expected level", "the result was not quite what was hoped for", "the performance didn't meet expectations", "the performance was below expectations", "the performance was shy of expectations", "the performance was quite subpar", "the final outcome was mildly disappointing", "the final result was a bit of a letdown"];
 
 attackWords = ["attack", "ambush", "bash", "batter", "bite", "bludgeon", "chop", "claw", "cleave", "club", "crack", "crush", "flail", "fling", "gouge", "hack", "impale", "jab", "kick", "lunge", "maul", "pound", "pummel", "pierce", "punch", "ram", "rend", "shred", "slash", "slam", "slice", "smash", "stab", "strike", "swipe", "swing", "smack", "thrust", "whack", "wreck"];
 
@@ -956,26 +1018,37 @@ exhaustedArray = [
   "you feel like you're at the end of your rope and need rest."
 ];
 
-exhaustionSleepArray = [
-  "you find the need for a place for deep sleep as your body succumbs to its weariness.",
-  "you urgently need to crawl into slumber, the exhaustion is too much to bear.",
-  "you are about to drift away into unconscious sleep as fatigue takes hold.",
-  "you need to get sleep, your body is about to let go of its fight with exhaustion.",
-  "you need to go under rest, the overwhelming tiredness is pulling you.",
-  "you need to head into sleep, your mind is shutting down as exhaustion claims you.",
-  "you need to lay down, the exhaustion almost pulling you into a deep, much-needed rest.",
-  "you require deliberate action to lie down, and wish for sleep to come quickly, your body finally giving in.",
-  "you mind needs you to make your way into sleep, the exhaustion is too much to resist.",
-  "you need to purposely move into slumber, your mind surrendering to the weight of your fatigue.",
-  "you urgently require deliberate sleep, the fatigue finally overtaking you.",
-  "you need to settle into sleep, your body letting go of the day’s exhaustion.",
-  "you need to sink into sleep, the weight of your weariness dragging you under.",
-  "you need to step into slumber, your exhaustion becoming too much to fight.",
-  "you need to surrender to sleep, the exhaustion finally winning over your body.",
-  "you need to take a deep breath and fall into sleep, your body letting go.",
-  "you need to turn in immediately, and sleep will claim you effortlessly.",
-  "you need to transition into slumber, else your body will fail you."
+fullExhaustionArray = [
+  "you vomit from exhaustion.",
+  "your stamina gives away and you fall down.",
+  "a massive cramp floods your tired body.",
+  "you feel your heart beating too fast from exhaustion.",
+  "you black out from tiredness for a second.",
+  "you get an enormous headache from your lack of energy.",
+  "you feel if you push your body again, you will probably collapse from exhaustion.",
+  "your vision blurs and a ringing fills your ears from sheer fatigue.",
+  "your hands tremble uncontrollably from energy depletion.",
+  "your knees hit the ground as your body refuses to move forward.",
+  "you sway on your feet, dangerously close to fainting.",
+  "you drop what you're holding, your grip gone with exhaustion.",
+  "a wave of nausea rolls through you, your body screaming for rest.",
+  "your muscles spasm randomly, stretched far past their limit.",
+  "your mind fogs over, making it hard to think straight.",
+  "your heart skips a beat, jolting you with weakness.",
+  "a loud ringing drowns out the world as your system begins to shut down.",
+  "you stumble forward, unsure whether you’re even awake anymore.",
+  "you hear your own heartbeat pounding in your skull, heavy and strained."
 ];
+
+enterWords = ["crawl", "drift", "enter", "fall", "get", "go", "head", "lay", "lie down", "make", "move", "nap", "prepare", "proceed", "slip", "sleep", "settle", "sink", "snuggle", "step", "surrender", "take", "turn in", "transition"];
+
+restingWords = ["catnap", "doze", "hibernate", "nap", "relax", "rest", "sleep", "slumber", "asleep"];
+
+lightRestWords = ["brief", "fleeting", "minor", "momentary", "passing", "quick", "relax", "short", "small", "tiny", "transient", "breath", "breathe", "breathing"];
+
+moderateRestWords = ["catnap", "doze", "light sleep", "nap", "power nap", "repose", "rest", "siesta", "snooze"];
+
+fullRestWords = ["deep", "deeply", "hibernation", "hibernate", "long", "prolonged", "rejuvenating", "sleep", "slumber", "sound", "uninterrupted"];
 
 bodyParts = [
   // Standard humanoid body parts
@@ -1060,13 +1133,13 @@ beginnerHeroSkills = [
 ];
 
 const upgradeTier1 = [
-  "Amplified", "Bright", "Formed", "Gentle", "Greater", "Light", 
+  "Bright", "Formed", "Gentle", "Greater", "Light", 
   "Modest", "Quiet", "Rare", "Raw", "Shaped", "Spirited", 
   "Swift", "Tested", "Trial", "Tuned", "Warmed", "Wild"
 ];
 
 const upgradeTier2 = [
-  "Angled", "Balanced", "Bouncy", "Bright", "Calculated", "Clear", 
+  "Amplified", "Angled", "Balanced", "Bouncy", "Bright", "Calculated", "Clear", 
   "Controlled", "Crisp", "Dark", "Efficient", "Enhanced", "Firm", 
   "Frosted", "Honed", "Improved", "Keen", "Measured", "Polished", 
   "Precise", "Refined", "Sharpened", "Settled", "Stable", "Steady"
@@ -1074,7 +1147,7 @@ const upgradeTier2 = [
 
 const upgradeTier3 = [
   "Awakened", "Black", "Blue", "Brisk", "Charged", "Crystalled", 
-  "Empowered", "Energetic", "Evolved", "Fortified", "Ignited", 
+  "Empowered", "Energetic", "Evolved", "Fortified", "Glassy", "Ignited", 
   "Infused", "Quickened", "Reactive", "Red", "Resonant", "Sharp", 
   "Stirring", "Swift", "Vibrant", "Welled", "Zapped"
 ];
@@ -1095,129 +1168,36 @@ const upgradeTier5 = [
   "Starwoven", "Temporal", "Transcendent", "Vengeful", "Voidtouched"
 ];
 
+const intensityLevels = [
+  // Level 1 – Barely noticeable
+  ["Faint", "Soft", "Dim", "Weak", "Mild", "Gentle", "Whispery", "Light", "Fragile", "Bad"],
 
-const scoutWords = [
-  "assess", "check", "examine", "inspect", "investigate",
-  "look around", "observe", "scan", "scope out", "scout", "survey", "take in"
-];
+  // Level 2 – Low strength
+  ["Subtle", "Thin", "Timid", "Quiet", "Slow", "Shy", "Pale", "Dull", "Hazy", "Uncertain"],
 
-const detail1 = [
-  "You didn't notice much.",
-  "Nothing stands out.",
-  "It all seems normal to your untrained mind.",
-  "You can only see the basics, but that's about it.",
-  "Your glance passes over everything without meaning.",
-  "There's little your eyes can make sense of.",
-  "The area feels vague and indistinct.",
-  "Whatever might be here, it's lost on you.",
-  "You wish you studied more.",
-  "Your brain is foggy.",
-  "Your eyes are sharp but your mind isn't.",
-  "You rack your puny mind only to make out some small details."
-];
+  // Level 3 – Noticeable
+  ["Clear", "Steady", "Present", "Visible", "Moderate", "Discernible", "Stable", "Measured", "Defined", "Firm"],
 
-const detail2 = [
-  "You notice a few obvious features.",
-  "There’s not much that catches your eye.",
-  "You spot one or two things of interest.",
-  "Your attention grazes the surface.",
-  "Your mind snags briefly on something out of place.",
-  "You register something small but can’t quite define it.",
-  "You sense the bare outlines of activity.",
-  "You catch a glimpse, but it fades before it’s clear.",
-  "You thank the heavens that you can at least make out a detail or two."
-];
+  // Level 4 – Solid
+  ["Strong", "Confident", "Sharp", "Focused", "Bold", "Crisp", "Loud", "Brisk", "Vivid", "Determined"],
 
-const detail3 = [
-  "You pick up on a few small details.",
-  "Something feels off, but you're not sure what.",
-  "You catch glimpses of subtle patterns.",
-  "There’s more here than meets the eye.",
-  "Your eyes trace uneven paths in the environment.",
-  "A sound or motion almost makes sense to you.",
-  "You feel the tug of something unspoken.",
-  "Hints of order tease your awareness.",
-  "You embrace some naivety in your surveying skills."
-];
+  // Level 5 – Potent
+  ["Powerful", "Intense", "Energetic", "Charged", "Concentrated", "Robust", "Active", "Amplified", "Directed", "Deep"],
 
-const detail4 = [
-  "You notice patterns others might miss.",
-  "Your thoughts linger on a few specific details.",
-  "You recognize some purposeful arrangements.",
-  "You catch onto a few underlying cues.",
-  "Objects seem placed with intent, not randomness.",
-  "You notice odd alignments that suggest deeper function.",
-  "A faint mark draws your gaze, meaningful or not.",
-  "You detect symmetry hidden beneath the clutter.",
-  "Your mind sparks with some tiny clues."
-];
+  // Level 6 – Forceful
+  ["Forceful", "Pressing", "Gripping", "Heated", "Flowing", "Bursting", "Pulsing", "Eager", "Burning", "Bright"],
 
-const detail5 = [
-  "You discern useful clues.",
-  "Your mind starts connecting dots.",
-  "You get a sense of structure in your surroundings.",
-  "You begin to grasp the bigger picture.",
-  "Faint impressions resolve into hints of narrative.",
-  "There’s rhythm in the way things are spaced.",
-  "Your mind fills in the blanks naturally.",
-  "Disparate parts start to form a whole."
-];
+  // Level 7 – Fierce
+  ["Fierce", "Driving", "Boiling", "Surging", "Piercing", "Radiating", "Lashing", "Vibrating", "Thrumming", "Relentless"],
 
-const detail6 = [
-  "You quickly spot key elements of the scene.",
-  "You see layers of meaning others overlook.",
-  "Your perception filters noise from signal.",
-  "You identify important features with ease.",
-  "The scene unfolds before you like a planned arrangement.",
-  "Each item seems to tell part of a greater story.",
-  "You detect movement where others would miss stillness.",
-  "Details leap out like words in a book."
-];
+  // Level 8 – Unstable
+  ["Volatile", "Unleashed", "Feral", "Erratic", "Storming", "Howling", "Overcharged", "Churning", "Expanding", "Straining"],
 
-const detail7 = [
-  "You understand the implications of what you see.",
-  "Your insight draws out subtle truths.",
-  "You recognize hidden patterns and meanings.",
-  "Nothing escapes your notice.",
-  "Even the silence has structure to your ears.",
-  "You sense motive behind seemingly random choices.",
-  "Your thoughts flow with the shape of the space.",
-  "You interpret the stillness as something waiting to act."
-];
+  // Level 9 – Overwhelming
+  ["Overwhelming", "Immense", "Crushing", "Ripping", "Searing", "Unstoppable", "Torrential", "Saturating", "Shattering", "Wild"],
 
-const detail8 = [
-  "Your mind pieces together invisible threads.",
-  "You interpret the scene with clarity and speed.",
-  "Even faint traces yield meaningful conclusions.",
-  "Your intuition and logic work in perfect sync.",
-  "You sense memory lingering in corners and echoes.",
-  "Mundane details crystallize into valuable insights.",
-  "You perceive intent beneath design and behavior.",
-  "Your mind stitches everything together instantly."
-];
-
-const detail9 = [
-  "You analyze your surroundings with surgical precision.",
-  "You intuit layers of complexity with ease.",
-  "Every detail seems to speak to you.",
-  "You comprehend not just the what, but the why.",
-  "Your thoughts dissect the space like a scholar with diagrams.",
-  "Even stillness suggests history to you.",
-  "You distinguish illusion from function with ease.",
-  "Your awareness stretches beyond what is visible."
-];
-
-const detail10 = [
-  "You perceive truths hidden from ordinary minds.",
-  "The full scope of the environment opens itself to you.",
-  "You see behind appearances to the reality beneath.",
-  "Your awareness feels nearly omniscient.",
-  "You interpret the moment as though reading fate itself.",
-  "Every shadow, scent, and silence is meaningful.",
-  "You perceive time’s passage through dust and echoes.",
-  "The world reveals its secrets before you even ask.",
-  "Your eyes locks into every single detail.",
-  "Your extreme intelligence aids you."
+  // Level 10 – Mythic
+  ["Mythic", "Godlike", "Cosmic", "Primordial", "Eternal", "Infinite", "Worldbreaking", "Uncontainable", "Transcendent", "Absolute"]
 ];
 
 const skillPower1 = [
@@ -1226,7 +1206,7 @@ const skillPower1 = [
   "[Skill] flickers in.",
   "A soft hum of [Skill] stirs and buzzes.",
   "You fumble slightly as [Skill] begins to form.",
-  "[Skill] shly whispers through the air",
+  "[Skill] shly whispers through the air.",
   "You exude some inexperience with [Skill].",
   "A cute display of [Skill] executes.",
   "You manage to cast your [Skill].",
@@ -1360,13 +1340,13 @@ const skillPower10 = [
   "Your sage mastery of [Skill] speaks for itself.",
   "[Skill] reshapes the moment like a sovereign decree.",
   "You command [Skill] as if born to it.",
-  "A flicker of effort breaks through before [Skill] takes hold.",
-  "There’s a crack in your flow, but [Skill] still triumphs.",
+  "A flicker of effort breaks through before [Skill] takes a strong hold.",
+  "There’s a crack in your flow, but [Skill] still greatly triumphs.",
   "Your form falters—but [Skill] holds, vast and imposing."
 ];
 
 const harnessSkill = [
-  "You attempt to harness your [Skill].",
+  "You attempt to harness your [Skill] skill.",
   "You attempt a quickened execution of [Skill].",
   "You attempt to shortcut cast [Skill].",
   "Your shortened incantation of [Skill] attempts to execute.",
@@ -1378,33 +1358,298 @@ const harnessSkill = [
   "Your quickened [Skill] flickers in.",
   "You grasp at the edge of your [Skill], trying to unleash it swiftly.",
   "Your hurried words shape your [Skill] skill.",
-  "You risk a rapid cast, hoping to avoid misfire.",
+  "You risk a rapid cast of [Skill], hoping to avoid misfire.",
   "You rush your concentration, testing the speed of [Skill].",
   "You force [Skill] into a quicker form, with successful execution."
 ];
 
+const talentPower1 = [
+  "Your inexperience with [Talent] is a bewilderment to all.",
+  "You kind of fumble with your [Talent].",
+  "Your [Talent] attempt is a bit clumsy and awkward, barely making the mark.",
+  "You somewhat struggle with [Talent].",
+  "You scratch the surface of [Talent], barely making it work.",
+  "Your attempt at [Talent] seems improvised and shaky.",
+  "You poke around with [Talent].",
+  "Your nerves show a bit in your [Talent].",
+  "Your [Talent] produces something...",
+  "You try to apply [Talent], hoping something works.",
+  "It appears your [Talent]... exists. ",
+  "You try your hand at [Talent], but it comes a bit crude.",
+  "Some experience shows with your [Talent]",
+  "Your [Talent] is novice."
+];
+
+const talentPower2 = [
+  "Your [Talent] gets the job done—just barely.",
+  "You manage to use [Talent] with shaky hands.",
+  "Your [Talent] shows promise, though not much polish.",
+  "You produce something functional with your [Talent].",
+  "There's a glimmer of competence in your [Talent].",
+  "Your [Talent] isn't impressive, but it works.",
+  "You apply [Talent] with a touch of uncertainty.",
+  "Your [Talent] results in something usable, if unimpressive.",
+  "You lean on your [Talent], and it holds... for now.",
+  "You wobble through [Talent] but reach the end.",
+  "Your [Talent] just about meets expectations.",
+  "You coax [Talent] into doing what you need, barely."
+];
+
+const talentPower3 = [
+  "You use your [Talent] with growing control.",
+  "There’s a steady rhythm to your [Talent].",
+  "You manage [Talent] with noticeable improvement.",
+  "You bring out a solid result through your [Talent].",
+  "Your [Talent] begins to feel more natural.",
+  "You apply [Talent] with basic but visible skill.",
+  "You focus, and your [Talent] meets the task.",
+  "Your [Talent] produces something respectable.",
+  "You get the hang of [Talent], bit by bit.",
+  "Your [Talent] speaks of effort and growing experience.",
+  "You’re beginning to trust your [Talent] more.",
+  "Your [Talent] shows good instinct, even if rough."
+];
+
+const talentPower4 = [
+  "Your [Talent] is almost average.",
+  "You apply [Talent] with practiced ease.",
+  "Your [Talent] yields a capable result.",
+  "You control your [Talent] with steady hands.",
+  "There’s some confidence in the way you wield [Talent].",
+  "You navigate the task through [Talent] with some experience.",
+  "You focus on precision, and your [Talent] follows.",
+  "Your [Talent] comes across as mid.",
+  "Your [Talent] comes across as confident, if a bit stiff.",
+  "You deliver results through [Talent] that start to feel deliberate.",
+  "The [Talent] process is steady, if not yet graceful.",
+  "Your [Talent] shows some finesse."
+];
+
+const talentPower5 = [
+  "You channel your [Talent] with average power and direction.",
+  "Your [Talent] comes through with some clarity.",
+  "You make good use of [Talent].",
+  "Your [Talent] delivers an average impression.",
+  "There’s energy and structure in your [Talent].",
+  "You tackle the task head-on with your [Talent].",
+  "Your [Talent] delivers results that others would notice.",
+  "You take confident action using [Talent].",
+  "Your [Talent] flares briefly but effectively.",
+  "You pour focus into [Talent] and it answers.",
+  "You guide [Talent] with confidence, despite a few bumps.",
+  "Your [Talent] hits its mark, though a bit loud about it."
+];
+
+const talentPower6 = [
+  "You execute your [Talent] with precision and force.",
+  "Your [Talent] flows with sharp clarity.",
+  "You apply [Talent] like a skilled artisan.",
+  "There’s a snap to your [Talent]—clean and confident.",
+  "You make quick, decisive use of your [Talent].",
+  "Your [Talent] carves through the problem efficiently.",
+  "You press forward, and your [Talent] follows like muscle memory.",
+  "Your [Talent] is polished, but still evolving.",
+  "You stumble briefly, but your [Talent] picks up fast.",
+  "You almost rush [Talent], but maintain control.",
+  "Your [Talent] flares brightly, then settles into rhythm.",
+  "There’s fire in your [Talent], even with small missteps."
+];
+
+const talentPower7 = [
+  "You finesse the task beautifully with your [Talent].",
+  "Your [Talent] operates with natural grace.",
+  "You show clear mastery in how you use [Talent].",
+  "Your [Talent] brings about results with flair.",
+  "The rhythm of your [Talent] is captivating.",
+  "You perform with an elegance only [Talent] can bring.",
+  "Your [Talent] shines with practiced power.",
+  "Every move with [Talent] feels smooth and strong.",
+  "You impress without trying—your [Talent] speaks for itself.",
+  "There’s minor flourish in your [Talent], but it feels earned."
+];
+
+const talentPower8 = [
+  "You make art out of your [Talent].",
+  "Your [Talent] is nearly flawless and refined.",
+  "You manipulate the task with pure [Talent].",
+  "There’s fluid, expert rhythm in your [Talent].",
+  "Your [Talent] guides the task like second nature.",
+  "You don't hesitate—your [Talent] dances forward.",
+  "Your [Talent] brings stunning results with minimal effort.",
+  "Every detail is accounted for in your [Talent].",
+  "Even your pauses in [Talent] seem intentional.",
+  "Your [Talent] could teach others just by observation."
+];
+
+const talentPower9 = [
+  "Your [Talent] dominates the task with masterful grace.",
+  "The world bends to the motion of your [Talent].",
+  "You handle the process like a legend of [Talent].",
+  "Nothing escapes your control—your [Talent] is commanding.",
+  "You move with the calm certainty of [Talent] mastery.",
+  "The power of [Talent] seems embedded in your being.",
+  "Your [Talent] feels woven into your identity.",
+  "You don’t perform [Talent]—you embody it.",
+  "Each motion in your [Talent] is precise and absolute.",
+  "You bring about near-perfection through [Talent]."
+];
+
+const talentPower10 = [
+  "You shape reality with your [Talent].",
+  "The world watches in awe of your [Talent].",
+  "Your [Talent] is myth in motion.",
+  "You transcend the task through your [Talent].",
+  "Your [Talent] radiates timeless mastery.",
+  "Every action is divine—pure [Talent] at its peak.",
+  "You work miracles with your [Talent].",
+  "Legends will remember this moment of [Talent].",
+  "The essence of [Talent] flows through you fully.",
+  "You perform [Talent] with power that defies understanding."
+];
+
+const scoutWords = [
+  "analyze", "assess", "check", "calculate", "decipher", "examine", "inspect", "investigate", "listen",
+  "look around", "observe", "scan", "scope out", "scout", "survey", "track", "take in", "watch"
+];
+
+const detail1 = [
+  "You didn't notice much.",
+  "Nothing stands out.",
+  "It all seems normal to your untrained mind.",
+  "You can only see the basics, but that's about it.",
+  "Your glance passes over everything without meaning.",
+  "There's little your eyes can make sense of.",
+  "The area feels vague and indistinct.",
+  "Whatever might be here, it's lost on you.",
+  "You wish you studied more.",
+  "Your brain is foggy.",
+  "Your eyes are sharp but your mind isn't.",
+  "You rack your puny mind only to make out some small details."
+];
+
+const detail2 = [
+  "You notice a few obvious features.",
+  "There’s not much that catches your eye.",
+  "You spot one or two things of interest.",
+  "Your attention grazes the surface.",
+  "Your mind snags briefly on something out of place.",
+  "You register something small but can’t quite define it.",
+  "You sense the bare outlines of activity.",
+  "You catch a glimpse, but it fades before it’s clear.",
+  "You thank the heavens that you can at least make out a detail or two."
+];
+
+const detail3 = [
+  "You pick up on a few small details.",
+  "Something feels off, but you're not sure what.",
+  "You catch glimpses of subtle patterns.",
+  "There’s more here than meets the eye.",
+  "Your eyes trace uneven paths in the environment.",
+  "A sound or motion almost makes sense to you.",
+  "You feel the tug of something unspoken.",
+  "Hints of order tease your awareness.",
+  "You embrace some naivety in your surveying skills."
+];
+
+const detail4 = [
+  "You notice patterns others might miss.",
+  "Your thoughts linger on a few specific details.",
+  "You recognize some purposeful arrangements.",
+  "You catch onto a few underlying cues.",
+  "Objects seem placed with intent, not randomness.",
+  "You notice odd alignments that suggest deeper function.",
+  "A faint mark draws your gaze, meaningful or not.",
+  "You detect symmetry hidden beneath the clutter.",
+  "Your mind sparks with some tiny clues."
+];
+
+const detail5 = [
+  "You discern useful clues.",
+  "Your mind starts connecting dots.",
+  "You get a sense of structure in your surroundings.",
+  "You begin to grasp the bigger picture.",
+  "Faint impressions resolve into hints of narrative.",
+  "There’s rhythm in the way things are spaced.",
+  "Your mind fills in the blanks naturally.",
+  "Disparate parts start to form a whole."
+];
+
+const detail6 = [
+  "You quickly spot key elements of the scene.",
+  "You see layers of meaning others overlook.",
+  "Your perception filters noise from signal.",
+  "You identify important features with ease.",
+  "The scene unfolds before you like a planned arrangement.",
+  "Each item seems to tell part of a greater story.",
+  "You detect movement where others would miss stillness.",
+  "Details leap out like words in a book."
+];
+
+const detail7 = [
+  "You understand the implications of what you see.",
+  "Your insight draws out subtle truths.",
+  "You recognize hidden patterns and meanings.",
+  "Nothing escapes your notice.",
+  "Even the silence has structure to your ears.",
+  "You sense motive behind seemingly random choices.",
+  "Your thoughts flow with the shape of the space.",
+  "You interpret the stillness as something waiting to act."
+];
+
+const detail8 = [
+  "Your mind pieces together invisible threads.",
+  "You interpret the scene with clarity and speed.",
+  "Even faint traces yield meaningful conclusions.",
+  "Your intuition and logic work in perfect sync.",
+  "You sense memory lingering in corners and echoes.",
+  "Mundane details crystallize into valuable insights.",
+  "You perceive intent beneath design and behavior.",
+  "Your mind stitches everything together instantly."
+];
+
+const detail9 = [
+  "You analyze your surroundings with surgical precision.",
+  "You intuit layers of complexity with ease.",
+  "Every detail seems to speak to you.",
+  "You comprehend not just the what, but the why.",
+  "Your thoughts dissect the space like a scholar with diagrams.",
+  "Even stillness suggests history to you.",
+  "You distinguish illusion from function with ease.",
+  "Your awareness stretches beyond what is visible."
+];
+
+const detail10 = [
+  "You perceive truths hidden from ordinary minds.",
+  "The full scope of the environment opens itself to you.",
+  "You see behind appearances to the reality beneath.",
+  "Your awareness feels nearly omniscient.",
+  "You interpret the moment as though reading fate itself.",
+  "Every shadow, scent, and silence is meaningful.",
+  "You perceive time’s passage through dust and echoes.",
+  "The world reveals its secrets before you even ask.",
+  "Your eyes locks into every single detail.",
+  "Your extreme intelligence aids you."
+];
+
 /////////////////////////////////////////////////////////////////////////////////////
-
 /// TAS STANDARD FUNCTIONS
-//Input /start unlocks the script else script naturally locked
-function unlockScript(key){ 
-  if (state.startScript == false) {
-    if (key.includes("/start")) {
-      state.startScript = true;
-      text = text + "\n 🔓 TAS Script Unlocked!";
-    }
-  }
-  return text;
-}
 
-//Detect input command /end to lock script
-function lockScript(key){ 
-  if (state.startScript == true) {
-    if (key.includes("/end")) {
-      state.startScript = false;
-      text = text + "\n 🔒 TAS Script Locked!"
+// Check for lock or unlock script command from input and execute
+function scriptSwitch_TAS(text) {
+  if (state.startScript == false) {
+    if (text.includes("/start")) {
+      state.startScript = true;
+      text = "\n<< 🔓 TAS Script Unlocked! >>";
     }
   }
+
+  if (state.startScript == true) {
+    if (text.includes("/end")) {
+      state.startScript = false;
+      text = "\n<< 🔒 TAS Script Locked! >>"
+    }
+  }
+
   return text;
 }
 
@@ -1417,27 +1662,29 @@ function helpCommandInput_TAS(text){
     📊 Player Stats Guide
 
     - 📥 Type "Player Stats" in the Story Cards to view your current stats.
-    - 🔄 Stats auto-update based on natural player input and context.
-    - ✏️ To manually adjust a stat, use the format: STAT: x/maxX.
-    - 🗒️ Stat change logs appear in the notes of the Player Stats Story Card.
+    - 🔄 Stats auto-update based on natural player input and AI output.
+    - ✏️ Player Stats story card editing format: STAT: x/maxX.
+    - 🗒️ All stat change logs are located in their story card notes.
 
     🧠 Gameplay Mechanics
 
     - ❤️ Health and 🔵 Mana regenerate every turn.
     - ⚡ Energy decreases every turn.
     - ⚠️ Low Health or Energy leads to consequences.
-    - 📈 Stats used in actions gain exp. Experience scales exponentially lower as your stats increase.
-    - 🎓 When a stat is maxed, exp overflows to your main EXP pool for leveling up instead.
+    - 🖤 Running out of energy results in ~10% health reduction every turn.
+    - 📈 Stats gain points when used. Points scale exponentially lower as your stats increase.
+    - 🎓 When a stat is maxed, points overflow to your EXP pool for leveling up instead.
     - 🆙 Leveling up increases all max stats.
 
     📐 Scaling & Calculations
 
     - 🧠 Mana scales with INTL.
-    - 🛡️ X DEF = X/2 % damage reduction.
-    - ➕ DEF above 100 reduces damage by an extra 0.01% per 10 points.
+    - 🛡️ X DEF = X/2 % damage reduction. DEF above 100 reduces damage by an extra 0.01% per 10 points.
     - 🍀 Each point in LCK gives a 1% chance of a lucky boost.
     >>
     `
+    
+    return " ";
   }
   else if(text.includes("/help talents")){
     state.commandCenter_TAS = 
@@ -1446,17 +1693,22 @@ function helpCommandInput_TAS(text){
     🎯 Talent System Guide
 
     - 🧠 Talents represent your character's aptitudes (e.g., Cooking, Lockpicking, Fishing).
-    - ⚡ Talents consume energy points (EP) when used.
+    - ⚡ Talents require energy points (EP) to use.
     - ✨ Casting a talent transforms it into a skill, which uses mana (MP) instead.
-    - 📝 Edit talents in the Story Card using the format: "Talent Name (Lvl) (Ep)".
-    - 📚 Learn a talent by studying it and using its name repeatedly over a few turns. Ex: You [study word] Fireball.
-    - 🔤 Capitalized first-letter talent names are learned faster.
-    - 🧪 The system filters common words intelligently when detecting talent names.
-    - 🎓 Learning talents grants INTL experience.
-    - 📖 Talent learning progress is logged in the Player Talents Story Card notes.
-    - 📈 Using talents levels them up. Progress is also tracked in the Story Card.
+    - 🔎 Talent Use Format: "You [talentWord] [talent name]."
+    - 📝 Talents story card editing format: "Talent Name (Lvl) (Ep)".
+    - ✨ Using talents grant INTL points.
+    - 📈 Level up talents by using them.
+    - 💥 +10 Talent Level -> Greater Talent Power
+     - 🧪 Talents upgrade every 10 levels (up to level 50), which changes their name and reduces their EP cost by 5%.
+
+    - 📚 Learn a talent by studying it and using its name repeatedly over a few turns. Ex: You [learn word] Fireball.
+    - 🔤 Capitalize the talent's first letters to learn it faster.
+    - 🎓 Learning talents grants INTL points.
     >>
     `
+
+    return " ";
   }
   else if(text.includes("/help skills")){
     state.commandCenter_TAS = 
@@ -1464,67 +1716,95 @@ function helpCommandInput_TAS(text){
     <<
     🎯 Skills System Guide
 
-    - 🪄 Skills require mana points (MP) to use. Example: Fireball.
+
+    - 🪄 Skills require mana points (MP) to use.
+    - 🔎 Skill Cast Format: "You [cast word] [skill name]."
     - 🔄 Casting a talent transforms it into a skill.
-    - 📝 Edit skills in the Story Card using the format: "Skill Name (Lvl) (Mp)".
-    - 📈 Use skills to gain EXP — progress is logged in the Story Card.
-    - 🧪 Skills upgrade every 5 levels (up to level 25), changing their name and reducing MP cost by 5%.
-    - 💥 Skill power increases every 10 levels.
+    - 📝 Skills story card editing format: "Skill Name (Lvl) (Mp)".
+    - 📈 Level up skills by using them.
+    - 🧪 Skills upgrade every 10 levels (up to level 50), which changes their name and reduces their MP cost by 5%.
+    - 💥 +10 Skill Level -> Greater Skill Power
+    - ✨ Using skills grant ATK and INTL points.
     >>
     `
+
+    return " ";
   }
   
   else if (text.includes("/help inventory")) {
   state.commandCenter_TAS = 
   `
   <<
-  📦 Inventory Help
+  🎒 Inventory Help
 
-  - Store items by typing: "You [store words]... [item name]... [inventory words]."
-  - Include a number to specify quantity. Ex: "You put 2 apples in your bag."
   - Edit your inventory in the story card using the format: "Item Name (Amt)".
+
+  - Item Storing Format: "You [store words]... [amt] [item name]... [inventory words]." Ex: "You put 2 apples into your bag."
+  - Item Giving Format: "You [give words] [amt] [item]." Ex: "You give 1 apple."
+
   >>
   `
+
+  return " ";
   }
   else if (text.includes("/help actions")) {
     state.commandCenter_TAS = 
     `
     <<
-    🎬 Action System Help
+    ⚔️ Action System Help
 
-    - Item, talent, and skill usage requires name matching (exact or partial).
-    - Vague actions are taken literally. Example: "You slice it" (slice with what?).
-    - Cast skills: "You [cast verb] [skill name]."
-    - Rest to recover HP, MP, and energy:
-      • Light rest, moderate rest, full rest yield different recovery levels.
-      • Format: "You [enter words] [sleep words]."
-    - Use consumables for healing/energy. Example: "You drink a Mythical potion."
+    - Avoid vague language. Example: "You slice it" (slice with what?).
+
+    - Actions can harness across talents, skills, and item usage.
+    - Actions failure costs mana and energy.
+
+    - Rest to recover HP, MP, and EP:
+    - Recovery results vary depending on the your resting intensity. Ex: Napping, light sleep, deep sleep.
+    - Resting Format: "You [enter words] [sleep words]."
+
+    - Use consumables to recover HP and EP.
+    - Consuming Format: "You [consume words] [consumable]."
+
     - Use skills/talents on yourself to heal. Format: "You [heal word] [yourself] [skill/talent]."
-    - ATK & SPD:
-      • +10 ATK & SPD → stronger attacks
-      • +10 SPD → faster actions, better dodging
-      • Attacking and dodging costs energy based on your ATK and SPD
-    - INTL:
-      • +10 INTL → greater detail when scouting.
-      • Scouting Format: "You [scout words]."
+    - Heal amount = 25% INTL + (2 * Skill/Talent Lvl)
+
+    - Attack Format: "You [attackWords]"
+    - +10 ATK & SPD → stronger and faster attacks
+    - Attacking grants ATK and SPD points.
+
+    - Dodging Format: "You [dodgeWords]"
+    - +10 SPD → faster actions, better dodging
+    - Dodging grants SPD points.
+
+    - Scouting Format: "You [scout words]."
+    - +10 INTL → greater detail when scouting.
+    - Scouting grants INTL points.
+
     >>
     `
+
+    return " ";
   }
   else if (text.includes("/help keywords")) {
     state.commandCenter_TAS = 
     `
     <<
     🔎 talentWords:\n${talentWords}
+    🔎 learnWords:\n${learnWords}
     🔎 castWords:\n${castWords}
     🔎 equipWords:\n${equipWords}
     🔎 invWords:\n${invWords}
+    🔎 giveWords:\n${giveWords}
     🔎 attackWords:\n${attackWords}
     🔎 dodgeWords:\n${dodgeWords}
     🔎 consumeWords:\n${consumeWords}
+    🔎 enterWords:\n${enterWords}
     🔎 restingWords:\n${restingWords}
     🔎 scoutWords:\n${scoutWords}
     >>
     `
+
+    return " ";
   }
   else if (text.includes("/help")) {
     state.commandCenter_TAS = 
@@ -1543,8 +1823,11 @@ function helpCommandInput_TAS(text){
     - /help keywords — Command triggers
     >>
     `
+
+    return " ";
   }
-  //todo: clear command from text
+  
+  return text;
 }
 
 function helpCommandOutput_TAS(text){
@@ -1571,7 +1854,7 @@ function capitalizeFirst(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-///Function to return all indices of one target in array 
+// Function to return all indices of one target in array 
 function indicesOf(arr,target){  
     indices = [];
     for (let i = 0; i < arr.length; i++) {
@@ -1590,7 +1873,7 @@ function indicesOf(arr,target){
     
 }
 
-//With a words arr and arr of targets, find all indices for each target in word arr and put them together in one arr
+// With a words arr and arr of targets, get indices for each target from word arr and return indices in an arr
 function indicesOfTargets(wordsArr,targetWordsArr){
   allTargetsIndicesArr = [];
 
@@ -1632,7 +1915,7 @@ function randomFloat(min, max){
 }
 
 // Check for targets in text and split text string into words arr if there are. Replace all target words with first target word if simplify is true
-function findTargetsThenSplit(text, targetWordsArr, wordsArrHolder, simplify) {
+function findTargetsThenSplit(text, targetWordsArr, wordsArrHolder, simplifyFlag) {
   if (text == null) return null;
 
   yesSplit = false
@@ -1647,7 +1930,7 @@ function findTargetsThenSplit(text, targetWordsArr, wordsArrHolder, simplify) {
     // If text has target, set yessplit true
     if(targetRegex.test(cleanText)){
       // Optional replace large target words with first target word
-      if (simplify === true && target.split(" ").length > 1) {
+      if (simplifyFlag === true && target.split(" ").length > 1) {
         cleanText = cleanText.replace(targetRegex, targetWordsArr[0]);
       }
 
@@ -1660,7 +1943,7 @@ function findTargetsThenSplit(text, targetWordsArr, wordsArrHolder, simplify) {
   // Split text if target was found
   if (yesSplit){
     wordsArrHolder = cleanText.split(/\s+/).filter(word => word.trim() !== "");
-    //console.log("wordsArrHolder: ", wordsArrHolder);
+    //log("wordsArrHolder: ", wordsArrHolder);
     return wordsArrHolder;
   }
   else{
@@ -1729,64 +2012,6 @@ function checkAndBeforeIndicesArr(wordsArr,indicesArr,numWordsBefore){
   return false;
 }
 
-//Counts how frequent words appear in text and decays less appeared words
-function mostFrequentOutputWords(text){
-  //Split text into words and clean
-  outText = removeSpecificPunctuation(text).split(" ");
-
-  //Include uppercase stop words
-  capitalStopWords = [];
-  capitalStopWords = stopWords.map(word => word.charAt(0).toUpperCase() + word.slice(1));
-
-  //Remove stop words
-  outText = outText.filter(word => 
-  ![...stopWords, ...capitalStopWords, ...youWords].some(stopWord => stopWord === word)
-  );
-  
-  //Holders
-  state.freqWords = state.freqWords || [];
-  state.wordWeights = state.wordWeights || [];
-
-  //Push new words and weight to holders
-  outText.forEach(word => {
-    if(!state.freqWords.includes(word) && word != ""){
-    state.freqWords.push(word);
-    state.wordWeights.push(1);
-    }
-  })
-
-  //Words that appear again increment over time
-  state.freqWords.forEach((word,ii) => {
-    if(outText.includes(word)){
-      state.wordWeights[ii]++;
-    }
-    else{
-      //Decay factor for unused words
-      state.wordWeights[ii]--;
-    }
-  });
-
-  //Remove decayed words and weights from holders
-  state.freqWords = state.freqWords.filter((word, ii) => state.wordWeights[ii] >= 0);
-  state.wordWeights = state.wordWeights.filter((count) => count >= 0);
-  
-  //sortTwoLinkedArrForConsole(state.freqWords,state.wordWeights);
-}
-
-//sort two linked arrs and display each element together in console
-function sortTwoLinkedArrForConsole(arr1,arrToSort){
-  //Combine for console log debugging
-  combined = arr1.map((word, index) => [word,arrToSort[index]]);
-  // Sort the combined array based on the second element (arrToSort values)
-  combined.sort((a, b) => a[1] - b[1]);  // Sort by count (ascending)
-  // Extract sorted arr1 and arrToSort from the combined array
-  arr1 = combined.map(item => item[0]);
-  arrToSort = combined.map(item => item[1]);
-  arr1.forEach((word,ind)=>{
-    log(arr1[ind] + ": " + arrToSort[ind]);
-  })
-}
-
 // Check if any guest is distance after any home, and push weight into weightarr if true
 function isAfterIndex(guestIndices, homeIndices, minDis, maxDis, weightIfTrue, arrOfWeights) {
   if(guestIndices && homeIndices){
@@ -1815,6 +2040,7 @@ function isBeforeIndex(guestIndices, homeIndices, minDis,maxDis, weightIfTrue, w
   }
 }
 
+// Get closest number before an index from an arr
 function findClosestNumberBefore(arr, index) {
   for (let i = index - 1; i >= 0; i--) {
     const match = arr[i].match(/(\d+(\.\d+)?)/); // match integer or decimal
@@ -1916,6 +2142,57 @@ function getPlrRace(){
 
   return race;
 }
+
+// This function returns the index of a string in words arr
+function indexOfStr(needleArr, haystackArr) {
+  // Ensure str is split into words (if it's a string)
+  if (typeof needleArr === "string") {
+    needleArr = needleArr.toLowerCase().split(" ");
+  }
+  else{
+    needleArr = needleArr.map(w => w.toLowerCase());
+  }
+  // Case insensitive
+  haystackArr = haystackArr.map(w => w.toLowerCase());
+
+  for (let i = 0; i <= haystackArr.length - needleArr.length; i++) {
+    let match = true;
+    for (let j = 0; j < needleArr.length; j++) {
+      if (haystackArr[i + j] !== needleArr[j]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) return i;
+  }
+  return -1;
+}
+
+// For an arr of indices, find closest index to target index
+function closestIndexBeforeTarget(arr, targetIndex) {
+  let closest = -1;
+  for (let i = 0; i < arr.length; i++) {
+    const current = arr[i];
+    if (typeof current === 'number' && current <= targetIndex) {
+      if (closest === -1 || targetIndex - current < targetIndex - closest) {
+        closest = current;
+      }
+    }
+  }
+  return closest;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+/*
+function createIfNoSettingsSC(){
+  if (!storyCards.find(sc => sc.title === "TAS Settings")) {
+    // If card doesn't exist, create it
+    addStoryCard("TAS Settings", "Blank", "Player Stats");
+  }
+
+}
+*/
 
 /////////////////////////////////////////////////////////////////////////////////////
 
@@ -2445,10 +2722,10 @@ function storeModifiersToSC(){
 
   // Trim notes on char limit to prevent memory overfill
   if (modSC.description.length > 3000) {
-    halfIndex = Math.floor(modSC.description.length / 2);
+    halfIndex = Math.floor(modSC.description.length / 3);
     modSC.description = modSC.description.slice(0, halfIndex);
 
-    console.log("Trimming modSC description to prevent memory overload.");
+    log("Trimming modSC description to prevent memory overload.");
   }
 }
 
@@ -2517,7 +2794,7 @@ statKeys = ["lvl", "exp", "hp", "mp","ep", "atk", "def", "spd", "lck", "intl"];
 //Function to create new random player stats
 function newPlayerStats(){  
   //Get a random max level
-  state.playerStats.maxLvl = randomInt(2,30);
+  state.playerStats.maxLvl = randomInt(1,25);
 
   //Loop through each maxstat, and set max stats equal to max level
   maxStatKeys.forEach((mStat) => {
@@ -2593,10 +2870,10 @@ function storeStatsToSC(){
 
   // Trim notes on char limit to prevent memory overfill
   if (statSC.description.length > 3000) {
-    halfIndex = Math.floor(statSC.description.length / 2);
+    halfIndex = Math.floor(statSC.description.length / 3);
     statSC.description = statSC.description.slice(0, halfIndex);
 
-    console.log("Trimming statSC description to prevent memory overload.");
+    log("Trimming statSC description to prevent memory overload.");
   }
 }
 
@@ -2653,9 +2930,9 @@ function retrieveStatsFromSC(){
 }
 
 // Function to increment the player's stats
-function statUp(statName,incAmt){
+function statUp(statName, incAmt) {
   // Ensure incAmt is a number
-  if(typeof incAmt !== "number"){
+  if (typeof incAmt !== "number") {
     incAmt = 0;
   }
   incAmt = Number(incAmt);
@@ -2668,9 +2945,9 @@ function statUp(statName,incAmt){
 
   //Race modifiers influence stat gains
   plrRace = getPlrRace();
-  temp = incAmt * state.playerModifiers[statName+'Mod']/100;
+  temp = incAmt * state.playerModifiers[statName + 'Mod'] / 100;
   //Multiply temp by negative to ensure modifiers dont modify oppositely when incAmt is negative
-  if(incAmt < 0){
+  if (incAmt < 0) {
     temp = temp * -1;
   }
   incAmt = incAmt + temp;
@@ -2679,20 +2956,21 @@ function statUp(statName,incAmt){
 
   //Get maxstat string key Ex: maxATK
   maxStatName = "max" + statName.charAt(0).toUpperCase() + statName.slice(1);
-  
+
   //Save current stat
   stat = state.playerStats[statName];
   log("stat: " + stat);
+  log("----------");
 
   // Exception: Extra hp,mp,ep shouldnt lvl up player, simply increment available value
-  if(statName == "hp" || statName == "mp" || statName == "ep"){
+  if (statName == "hp" || statName == "mp" || statName == "ep") {
     state.playerStats[statName] += incAmt;
 
     //Only two decimal places
     state.playerStats[statName] = Math.round(state.playerStats[statName] * 100) / 100;
 
     //No overflow for hp, mp, ep
-    if(state.playerStats[statName] > state.playerStats[maxStatName]){
+    if (state.playerStats[statName] > state.playerStats[maxStatName]) {
       state.playerStats[statName] = state.playerStats[maxStatName];
     }
 
@@ -2706,20 +2984,21 @@ function statUp(statName,incAmt){
 
     state.msgHolder = state.msgHolder + `${statName.toUpperCase()} ${sign} :  ${stat} → ${state.playerStats[statName]}\n`;
   }
-  else{
+  else {
     //Formula which decreases value of exp the higher your level and gets the new stat value after exp gain. (stat + incAmt*PercentReduction)
     //New stat after exp scaling formula
-    newStat = stat + incAmt * (1.32 * Math.exp(-0.02 * stat));
+    newStat = 0.01 + stat + incAmt * (1.32 * Math.exp(-0.02 * stat));
 
     // Get scaled incAmt for logging
     scaledIncAmt = incAmt * (1.32 * Math.exp(-0.02 * stat));
-    scaledIncAmt = Math.round(scaledIncAmt*100)/100;
+    scaledIncAmt = Math.round(scaledIncAmt * 100) / 100;
     log("scaledIncAmt: " + scaledIncAmt);
 
     // Two decimal places only
     newStat = Math.round(newStat * 100) / 100;
     log("newStat: " + newStat);
     // todo: fix rounding at very high levels
+
     // Update the player stat to its new stat
     state.playerStats[statName] = newStat;
 
@@ -2729,11 +3008,11 @@ function statUp(statName,incAmt){
     log("overflow: " + overflow);
 
     // Fix stat to not pass maxstat
-    if(state.playerStats[statName] > state.playerStats[maxStatName]){
+    if (state.playerStats[statName] > state.playerStats[maxStatName]) {
       state.playerStats[statName] = state.playerStats[maxStatName];
     };
 
-    // Fetch the "Player Stats" card and log stat changes in description
+    // Fetch sc and log
     const statSC = storyCards.find(sc => sc.title === "Player Stats");
 
     if (incAmt >= 0) { sign = "⬆️" }
@@ -2741,31 +3020,32 @@ function statUp(statName,incAmt){
 
     statSC.description = `Log ${state.turnCount} | ${statName.toUpperCase()} ${sign} :  ${stat} → ${state.playerStats[statName]} (Scaled: ${scaledIncAmt}, Modded: ${incAmt}, Raw: ${preModIncAmt})\n` + statSC.description;
 
+    // Log to msg
     state.msgHolder = state.msgHolder + `${statName.toUpperCase()} ${sign} :  ${stat} → ${state.playerStats[statName]}\n`;
 
     //If there is positive stat overflow, pass it to player EXP
-    if(overflow > 0){
+    if (overflow > 0) {
       // Get current max level
       level = state.playerStats.maxLvl;
       log("level: " + level);
 
       // Scale overflow and add to EXP (Must scale overflow to account when player is high level but has a low stat which will overflow too much to EXP)
-      state.playerStats.exp = state.playerStats.exp + (100 * overflow * (1.32 * Math.exp(-0.02 * level)));
+      state.playerStats.exp = 0.01 + state.playerStats.exp + (100 * overflow * (1.32 * Math.exp(-0.02 * level)));
 
       // Round to two decimal places
       state.playerStats.exp = Math.round(state.playerStats.exp * 100) / 100;
       log("state.playerStats.exp: " + state.playerStats.exp);
-      
+
       //When maxEXP is reached, increment plr level and reset EXP to 0
-      if(state.playerStats.exp >= state.playerStats.maxExp){
+      if (state.playerStats.exp >= state.playerStats.maxExp) {
         // Calculate amt of times to increment LVL based on EXP
-        lvlIncrement = Math.floor(state.playerStats.exp/state.playerStats.maxExp);
+        lvlIncrement = Math.floor(state.playerStats.exp / state.playerStats.maxExp);
         log("lvlIncrement: " + lvlIncrement);
 
         // Calculate leftover EXP
-        leftoverExp = 100 * (state.playerStats.exp/state.playerStats.maxExp - lvlIncrement);
+        leftoverExp = 100 * (state.playerStats.exp / state.playerStats.maxExp - lvlIncrement);
         log("leftoverExp: " + leftoverExp);
-        
+
         // Increment LVL
         state.playerStats.maxLvl += lvlIncrement;
 
@@ -2784,88 +3064,94 @@ function statUp(statName,incAmt){
           //Get mod key
           statKey = key.slice(3); // Remove "max"
           modName = statKey.toLowerCase() + "Mod";
-          
+
           // Apply max stat changes
-          if(key == "maxHp"){
-            state.playerStats[key] += 5 + (5 * state.playerModifiers[modName]/100);
+          if (key == "maxHp") {
+            state.playerStats[key] += 5 + (5 * state.playerModifiers[modName] / 100);
           }
-          else if(key == "maxEp"){
-            state.playerStats[key] += 5 + (5 * state.playerModifiers[modName]/100);
+          else if (key == "maxEp") {
+            state.playerStats[key] += 5 + (5 * state.playerModifiers[modName] / 100);
           }
-          else if(key == "maxMp"){
-            state.playerStats[key] += 5 + state.playerStats.intl * 0.1 + (5 * state.playerModifiers[modName]/100);
+          else if (key == "maxMp") {
+            state.playerStats[key] += 5 + state.playerStats.intl * 0.1 + (5 * state.playerModifiers[modName] / 100);
           }
-          else{
-            if(key != 'maxLvl' && key != 'maxExp'){
-              state.playerStats[key] += 5  + (5 * state.playerModifiers[modName]/100);;
+          else {
+            if (key != 'maxLvl' && key != 'maxExp') {
+              state.playerStats[key] += 5 + (5 * state.playerModifiers[modName] / 100);;
             }
           }
 
-          //Two decimal places
-          state.playerStats[key] = Math.round(state.playerStats[key]*100)/100;
+          // Round to two decimal places
+          state.playerStats[key] = Math.round(state.playerStats[key] * 100) / 100;
         });
 
       } // End of level up
     } //end of positive overflow
   }
 
-  storeStatsToSC(); 
+  storeStatsToSC();
 }
 
-function playerNaturalRegen(){
-  //Player regens only if alive
-  if(state.playerStats.hp > 0){
-    statUp("hp",1);
-    statUp("mp",2);
+function playerNaturalRegen() {
+  // Player regens only if alive
+  if (state.playerStats.hp > 0) {
+    statUp("hp", 1);
+    statUp("mp", 2);
 
-    //Player loses available energy only
-    if(state.playerStats.ep > 0){
-      statUp("ep",-1 * randomFloat(0,1));
+    // Player loses available energy only
+    if (state.playerStats.ep > 0) {
+      statUp("ep", -1 * randomFloat(0, 1));
     }
-  }
- 
+
+    // Player takes damage for having no energy
+    if (state.playerStats.ep <= 0) {
+      statUp("hp", -1 * (randomFloat(0.01, 5) + randomFloat(0.01, state.playerStats.maxHp * 0.1)));
+    }
+
+  }//end of is alive
+
 }
 
-//Edit text to show player health
-function warnPlayerHealth(text){
+// Edit text to show player health
+function warnPlayerHealth(text) {
   plrHealth = state.playerStats.hp;
-  plrMaxHealth = state.playerStats.maxHp; 
+  plrMaxHealth = state.playerStats.maxHp;
   plrEnergy = state.playerStats.ep;
   plrMaxEnergy = state.playerStats.maxEp;
   numTurnsDisplay = 5;
-  
-  //warn player every 5 inputs, they have half health
-  if((plrHealth/plrMaxHealth) >= 0.45 && (plrHealth/plrMaxHealth) <= 0.50 && state.inputCount % numTurnsDisplay === 0){
-    text = text + ` ${realizePhrases[randomInt(0,realizePhrases.length-1)]} ${healthFeelsHalfway[randomInt(0,healthFeelsHalfway.length-1)]}.`;
+
+  // Warn player every 5 inputs, they have half health
+  if ((plrHealth / plrMaxHealth) >= 0.45 && (plrHealth / plrMaxHealth) <= 0.50 && state.inputCount % numTurnsDisplay === 0) {
+    text = text + ` ${realizePhrases[randomInt(0, realizePhrases.length - 1)]} ${healthFeelsHalfway[randomInt(0, healthFeelsHalfway.length - 1)]}.`;
   }
-  //Warns at 1% to 10% health
-  else if((plrHealth/plrMaxHealth) >= 0.01 && (plrHealth/plrMaxHealth) <= 0.10 && state.inputCount % numTurnsDisplay === 0){
-    text = text + ` ${realizePhrases[randomInt(0,realizePhrases.length-1)]} ${healthVeryLow[randomInt(0,healthVeryLow.length-1)]}.`;
+  // Warns at 1% to 10% health
+  else if ((plrHealth / plrMaxHealth) >= 0.01 && (plrHealth / plrMaxHealth) <= 0.10 && state.inputCount % numTurnsDisplay === 0) {
+    text = text + ` ${realizePhrases[randomInt(0, realizePhrases.length - 1)]} ${healthVeryLow[randomInt(0, healthVeryLow.length - 1)]}.`;
   }
 
-  //Player Death at 0%
-  if(plrHealth <= 0 && state.inputCount % 2 === 0){
-    text = text + ` Suddenly, ${healthDeathArray[randomInt(0,healthDeathArray.length-1)]} The world continues without you.`;
+  // Player Death at 0%
+  if (plrHealth <= 0 && state.inputCount % 2 === 0) {
+    text = text + ` Suddenly, ${healthDeathArray[randomInt(0, healthDeathArray.length - 1)]} The world continues without you.`;
 
     state.msgHolder = state.msgHolder + `GAME OVER. You died!\n`;
   }
 
 
-  //Warns every 5 input, at 50% energy
-  if((plrEnergy/plrMaxEnergy) >= 0.45 && (plrEnergy/plrMaxEnergy) <= 0.50 && state.inputCount % numTurnsDisplay === 0){
-    text = text + ` ${realizePhrases[randomInt(0,realizePhrases.length-1)]} ${halfEnergyArray[randomInt(0,halfEnergyArray.length-1)]}`;
+  // Warns every 5 input, at 50% energy
+  if ((plrEnergy / plrMaxEnergy) >= 0.45 && (plrEnergy / plrMaxEnergy) <= 0.50 && state.inputCount % numTurnsDisplay === 0) {
+    text = text + ` ${realizePhrases[randomInt(0, realizePhrases.length - 1)]} ${halfEnergyArray[randomInt(0, halfEnergyArray.length - 1)]}`;
   }
-  //Warns at 1% to 10% energy
-  else if((plrEnergy/plrMaxEnergy) >= 0.01 && (plrEnergy/plrMaxEnergy) <= 0.10 && state.inputCount % numTurnsDisplay === 0){
-    text = text + ` ${realizePhrases[randomInt(0,realizePhrases.length-1)]} ${exhaustedArray[randomInt(0,exhaustedArray.length-1)]}`;
+  // Warns at 1% to 10% energy
+  else if ((plrEnergy / plrMaxEnergy) >= 0.01 && (plrEnergy / plrMaxEnergy) <= 0.10 && state.inputCount % numTurnsDisplay === 0) {
+    text = text + ` ${realizePhrases[randomInt(0, realizePhrases.length - 1)]} ${exhaustedArray[randomInt(0, exhaustedArray.length - 1)]}`;
 
     state.msgHolder = state.msgHolder + `Your energy is very low. You may want to rest or eat.\n`
 
   }
-  
-  //No energy at 0%
-  if(plrEnergy <= 0 && state.inputCount % 5 === 0){
-    text = text + ` Suddenly, ${exhaustionSleepArray[randomInt(0,exhaustionSleepArray.length-1)]}`; 
+
+  // No energy at 0%
+  if (plrEnergy <= 0 && state.inputCount % 5 === 0) {
+    text = text + ` Suddenly, ${fullExhaustionArray[randomInt(0, fullExhaustionArray.length - 1)]}`;
 
     state.msgHolder = state.msgHolder + `You have no energy! Recover by consuming or sleeping.\n`
   }
@@ -2880,7 +3166,6 @@ state.playerInv = state.playerInv || {
   item: [],
   amt: []
 };
-console.log("Player Inventory: " + state.playerInv.item + "\n" + state.playerInv.amt);
 
 // CREATE new sc with player inv if sc doesnt exist
 function createIfNoInvSC(){
@@ -2905,10 +3190,10 @@ function storeInvToSC(){
 
   // Trim notes on char limit to prevent memory overfill
   if (invSC.description.length > 3000) {
-    halfIndex = Math.floor(invSC.description.length / 2);
+    halfIndex = Math.floor(invSC.description.length / 3);
     invSC.description = invSC.description.slice(0, halfIndex);
 
-    console.log("Trimming invSC description to prevent memory overload.");
+    log("Trimming invSC description to prevent memory overload.");
   }
 }
 
@@ -2919,7 +3204,7 @@ function retrieveInvFromSC(){
 
   // Get inv sc entry
   fromInvSC = invSC.entry;
-  log("fromInvSC: " + fromInvSC);
+  //log("fromInvSC: " + fromInvSC);
 
   // Use regex to extract item names and amounts (Ex: Ball (Amt: 2), etc. )
   matches = fromInvSC.matchAll(/(.+?)\s*\(.*?(\d+(?:\.\d+)?).*?\)/g);
@@ -2927,15 +3212,19 @@ function retrieveInvFromSC(){
   itemHold = [];
   amtHold = [];
   for (const match of matches) {
+    // Do not extract 0 amt items
+    if(match[2] != 0){
     itemHold.push(match[1].trim()); // Extract item name to holder
     amtHold.push(Number(match[2])); // Extract amount as integer to holder2
+    }
   }
 
   // Store retrieved data to codebase 
   state.playerInv.item = itemHold;
   state.playerInv.amt = amtHold;
-  //console.log("Items:", state.playerInv.item);
-  //console.log("Amounts:", state.playerInv.amt);
+
+  log("state.playerInv.item: " + state.playerInv.item);
+  log("state.playerInv.amt: " + state.playerInv.amt);
 }
 
 // Detect when the player stores item and amt to their inventory
@@ -2945,9 +3234,8 @@ function detectStoreInv(text) {
 
   // Verify player is not dialoguing (case-insensitive)
   dialogueCheck = true;
-  textLower = text.toLowerCase();
   dialoguePhrases.forEach(phrase => {
-    if (textLower.includes(phrase.toLowerCase())) {
+    if (text.toLowerCase().includes(phrase.toLowerCase())) {
       // Disable check dialoguing exists
       dialogueCheck = false;
     }
@@ -2956,10 +3244,10 @@ function detectStoreInv(text) {
   // If not a dialogue, check for inventory words in input then split text into words arr
   if (dialogueCheck == true) {
     equipTextInput = [];
-    newText = wordsToNumber(text);
-    equipTextInput = findTargetsThenSplit(newText, invWords, equipTextInput, true);
+    processedText = wordsToNumber(text);
+    equipTextInput = findTargetsThenSplit(processedText, invWords, equipTextInput, true);
     //equipTextInput = findTargetsThenSplit(text,equipWords,equipTextInput,true);
-    console.log("equipTextInput: " + equipTextInput);
+    log("equipTextInput: " + equipTextInput);
 
 
     // If there are inventory words, check for "you equip" in words arr using indices
@@ -2992,7 +3280,7 @@ function detectStoreInv(text) {
       ![...stopWords, ...equipWords, ...talentWords, ...dodgeWords, ...castWords, ...learnWords, ...invWords, ...numWords, ...youWords, ...selfWords, ...consumeWords, ...titleWords].some(fromArr => fromArr.toLowerCase() === word.toLowerCase())
     );
     potentialItem.tokens = potentialItem.tokens.filter(word => !/^\d+$/.test(word));
-    console.log("potentialItem.tokens: " + potentialItem.tokens);
+    log("potentialItem.tokens: " + potentialItem.tokens);
 
     if (potentialItem.tokens.length > 0) {
       // Get potential item indices from unfiltered input text
@@ -3147,7 +3435,7 @@ function detectStoreInv(text) {
           log("itemNameParts: " + itemNameParts);
 
           // Slice text chunk at potential item index for end of item testing
-          textChunk = newText.replace(">", "")
+          textChunk = processedText.replace(">", "")
             .trim()
             .split(" ")
             .slice(potentialItem.indices[index], potentialItem.indices[index] + 2)
@@ -3181,13 +3469,27 @@ function detectStoreInv(text) {
             // Increment item amt if already existing in inv
             if (alreadyItemIndex) {
               state.playerInv.amt[alreadyItemIndex] += itemAmt;
+
+              // Log to messages
               state.msgHolder = state.msgHolder + `🎒 +${itemAmt} ${state.playerInv.item[alreadyItemIndex]}\n`;
+
+
+              // Fetch the "Player Inventory" card and log
+              const invSC = storyCards.find(sc => sc.title === "Player Inventory");
+              invSC.description = `Log ${state.turnCount} | +${itemAmt} ${state.playerInv.item[alreadyItemIndex]}\n` + invSC.description;
             }
             else {
               // Else new item is stored
               state.playerInv.item.push(finalItemName);
               state.playerInv.amt.push(itemAmt);
+
+              // Log to msg
               state.msgHolder = state.msgHolder + `🎒 +${itemAmt} ${finalItemName}\n`;
+
+              // Fetch the "Player Inventory" card and log
+
+              const invSC = storyCards.find(sc => sc.title === "Player Inventory");
+              invSC.description = `Log ${state.turnCount} | +${itemAmt} ${finalItemName}\n` + invSC.description;
             }
           }
         }
@@ -3196,174 +3498,162 @@ function detectStoreInv(text) {
       //Update SC
       storeInvToSC();
 
-      //TODO: Diversify text appendment
-      return text = text + " It remains in your possession."
+      return text = text + ` ${itemGainPhrases[randomInt(0,itemGainPhrases.length-1)]}`;
 
-    }//end of filtered array not empty
+    }//end of potentialItem.tokens.length
 
-  }//end of start equip
+  }//end of startEquip
 
   return text;
 }
 
-/////////////////////////////////////////////////////////////////////////////////////
+// Detect when player gives away an item
+function detectGiving(text) {
+  // Initialize condition
+  startGiving = false;
 
-//Initialize player skills
-state.playerSkills = state.playerSkills || {
-  name: [],
-  lvl: [],
-  cost: []
-};
-console.log("state.playerSkills.name: " + state.playerSkills.name);
-console.log("state.playerSkills.lvl: " + state.playerSkills.lvl);
-console.log("state.playerSkills.cost: " + state.playerSkills.cost);
+  // Verify player is not dialoguing (case-insensitive)
+  dialogueCheck = true;
+  dialoguePhrases.forEach(phrase => {
+    if (text.toLowerCase().includes(phrase.toLowerCase())) {
+      // Disable check dialoguing exists
+      dialogueCheck = false;
+    }
+  });
 
-///Player skills will be stored in an sc. CREATE initial sc. Skills will STORE TO or RETREIVE FROM sc.
+  // Check for give words in the text and split the input
+  if (dialogueCheck == true) {
+    givingTextInput = [];
+    processedText = wordsToNumber(text);
+    givingTextInput = findTargetsThenSplit(processedText, giveWords, givingTextInput, true);
+    log("givingTextInput simplified: " + givingTextInput);
 
-//Function to create new class skills for player and store to their skills
-function newClassSkills(classString,skillArray){
-  plotEssentials = state.memory.context.toLowerCase();
-  if(plotEssentials.includes(classString + " class")){
-    state.playerSkills.name = [
-      skillArray[randomInt(0,skillArray.length-1)],skillArray[randomInt(0,skillArray.length-1)],skillArray[randomInt(0,skillArray.length-1)]
-    ];
-    state.playerSkills.lvl = [
-      randomInt(0,3),
-      randomInt(0,3),
-      randomInt(0,3)
-    ];
-    state.playerSkills.cost = [
-      randomInt(10,40),
-      randomInt(10,40),
-      randomInt(10,40)
-    ];
+    // Get all give word indices from input
+    if (givingTextInput != null) {
+      allGiveWordIndices = [];
+      allGiveWordIndices = indicesOfTargets(givingTextInput, giveWords);
+      log("allGiveWordIndices:" + allGiveWordIndices);
 
-    storeSkillsToSC();
+      // Check if the input contains "you/and + give" then unlock execution
+      if (allGiveWordIndices != null) {
+        startGiving = checkYouBeforeIndicesArr(givingTextInput, allGiveWordIndices, 3) || checkAndBeforeIndicesArr(givingTextInput, allGiveWordIndices, 2);
+        log("startGiving: " + startGiving);
+      }
+    }
   }
+
+  // Input meets requirements, execute giving
+  if (startGiving) {
+    itmInputIndices = [];
+    itmInputAmts = [];
+    itmInvIndices = [];
+
+    // Loop through each plr item to check if item is called in input
+    state.playerInv.item.forEach((itm, index) => {
+      // Split itm parts for multi worded itms
+      itmParts = itm.toLowerCase().split(" ");
+
+      // Loop through each word in input and check for full item match
+      for (let i = 0; i <= givingTextInput.length - itmParts.length; i++) {
+        match = true;
+
+        // Checking for full item match (case and plural insensitive)
+        for (let j = 0; j < itmParts.length; j++) {
+          if (itmParts[j] !== givingTextInput[i + j].toLowerCase()
+            && itmParts[j] + 's' !== givingTextInput[i + j].toLowerCase()) {
+            match = false;
+            break;
+          }
+        }
+
+        // Item is matched
+        if (match) {
+          // Store first part index from input in array
+          itmInputIndices.push(i);
+
+          // Get item amt from input and store in array
+          itmAmt = findClosestNumberBefore(givingTextInput, i) ?? 1;
+          itmInputAmts.push(itmAmt);
+
+          // Save item index from inv in array
+          itmInvIndices.push(index);
+        }
+      }
+
+    });
+    log("itmInputIndices: " + itmInputIndices);
+    log("itmInputAmts: " + itmInputAmts);
+    log("itmInvIndices: " + itmInvIndices);
+
+    giveFlavorText = [];
+    failFlavorText = [];
+    zeroAmtArr = [];
+
+    // Player has called item
+    if (itmInputIndices.length > 0) {
+      // Loop through each itm called 
+      itmInputIndices.forEach((itm, index) => {
+        // Player has enough item amount in inv
+        if (state.playerInv.amt[itmInvIndices[index]] >= itmInputAmts[index]) {
+          // Subtract item amt from inventory
+          state.playerInv.amt[itmInvIndices[index]] = state.playerInv.amt[itmInvIndices[index]] - itmInputAmts[index];
+
+          // Fetch SC and log
+          const invSC = storyCards.find(sc => sc.title === "Player Inventory");
+          invSC.description = `Log ${state.turnCount} | -${itmInputAmts[index]} ${state.playerInv.item[itmInvIndices[index]]}\n` + invSC.description;
+
+          // Log to messages
+          state.msgHolder = state.msgHolder + `🫴 -${itmInputAmts[index]} ${state.playerInv.item[itmInvIndices[index]]}\n`
+
+          // Store item to flavor text array
+          giveFlavorText.push(state.playerInv.item[itmInvIndices[index]]);
+          
+          storeInvToSC();
+
+        }
+        // Player doesnt have enough item amount in inv
+        else {
+          failFlavorText.push(state.playerInv.item[itmInvIndices[index]]);
+        }
+      });
+    }
+    log("giveFlavorText: " + giveFlavorText);
+    log("failFlavorText: " + failFlavorText);
+
+    // Execute giving flavor text
+    if (giveFlavorText.length > 0) {
+      text = text + ` The ${giveFlavorText.join(", ")} leaves your inventory.`
+    }
+    if (failFlavorText.length > 0) {
+      text = text + ` You realize you don't have enough ${failFlavorText.join(", ")}.`
+    }
+
+    // Unlock Context Hook feed to influence AI to reject lack of items or wrong items to give
+    allItems = [];
+    state.playerInv.item.forEach((itm, index) => {
+      allItems.push(`${state.playerInv.amt[index]} ${state.playerInv.item[index]}`);
+    })
+    allItems = allItems.join(", ");
+
+    state.invCheckText = ` You realize you have nothing in your inventory but only ${allItems}. You anticipate failure for not having the right items or amount.`
+
+    state.unlockInvToContext = true;
+    log("state.unlockInvToContext: " + state.unlockInvToContext);
+
+  }//end of startgiving
+
+  return text;
 }
 
-//Always CREATE initial sc if none.
-function createIfNoSkillSC(){
-  //If "Player Skills" card doesn't exist, create it
-  if (!storyCards.find(sc => sc.title === "Player Skills")) {
-    addStoryCard("Player Skills", "Blank", "Player Stats");
-
-    //Fetch SC and give it a description
-    const skillSC = storyCards.find(sc => sc.title === "Player Skills")   
-    skillSC.description = "Format for Modifying: SkillName (LVL) (MP), etc.";
-
-    //Mage, Healer, Swordsmen, Priest, Tank, Paladin, Hero, Custom
-    //Classes and the skills they start with
-    newClassSkills('mage',beginnerMageSpells);
-    newClassSkills('healer',beginnerHealerSkills);
-    newClassSkills('swordsmen',beginnerSwordsmanSkills);
-    newClassSkills('priest',beginnerPriestSkills);
-    newClassSkills('tank',beginnerTankSkills);
-    newClassSkills('paladin',beginnerPaladinSkills);
-    newClassSkills('hero',beginnerHeroSkills);
-
-  } 
-}
-
-//To STORE skill to sc
-function storeSkillsToSC(){
-  //Fetch skill sc
-  const skillSC = storyCards.find(sc => sc.title === "Player Skills");
-
-  //Format and display to sc Ex: Fireball (20 MP)
-  skillSC.entry = state.playerSkills.name.map((skill, index) => `${skill} (Lvl ${state.playerSkills.lvl[index]}) (${state.playerSkills.cost[index]} MP)`).join("\n");
-
-  // Trim notes on char limit to prevent memory overfill
-  if (skillSC.description.length > 3000) {
-    halfIndex = Math.floor(skillSC.description.length / 2);
-    skillSC.description = skillSC.description.slice(0, halfIndex);
-
-    console.log("Trimming skillSC description to prevent memory overload.");
-  }
-}
-
-//To RETRIEVE skills from SC.
-//Put in output script so retreiving is not limited to on input.
-function retrieveSkillsFromSC(){ 
-  //Fetch skill sc
-  const skillSC = storyCards.find(sc => sc.title === "Player Skills")
-
-  //Hold the skill sc entry string
-  temp = skillSC.entry;
-
-
-  skillHolder = [];
-  lvlHolder = [];
-  costHolder = [];
-  // Extract skill name and MP cost using regex. Discard wrong formats
-  let matches = temp.matchAll(/(.+?)\s*\(.*?(\d+(?:\.\d+)?).*?\)\s*\(.*?(\d+(?:\.\d+)?).*?\)/g);
-
-  // Store in respective arrays holders
-  for(const match of matches){
-    // First capture group (skill name)
-    skillHolder.push(match[1]); 
-    // Second capture group (skill lvl)
-    lvlHolder.push(Number(match[2])); 
-    // Third (skill cost)
-    costHolder.push(Number(match[3]))
+// Succeeding function for detectGiving, sends the inventory and rejection check text to AI on context hook
+function feedInvToContext(text){
+  if(state.unlockInvToContext){
+    text = text + state.invCheckText;
+    log("state.invCheckText: " + state.invCheckText);
   }
   
-  //Final store to code base
-  state.playerSkills.name = skillHolder;
-  state.playerSkills.lvl = lvlHolder;
-  state.playerSkills.cost = costHolder;
-}
+  state.unlockInvToContext = false;
 
-/////////////////////////////////////////////////////////////////////////////////////
-
-//part of upgradePlayerSkills, applies skill name change once lvlfloor is reached
-function skillNameUpgrade(level,skillIndex,tierWordArr,text){
-  if(Math.floor(state.playerSkills.lvl[skillIndex]) == level){
-    //Level up skill to avoid another upgrade
-    state.playerSkills.lvl[skillIndex] = level + 1;
-
-    //Mana cost reduction
-    state.playerSkills.cost[skillIndex] = Math.round(state.playerSkills.cost[skillIndex] * 0.95 * 100) / 100;
-    
-    //store old skill name
-    oldSkillName = state.playerSkills.name[skillIndex];
-
-    //Update skill name
-    if(tierWordArr == upgradeTier1){
-      state.playerSkills.name[skillIndex] = tierWordArr[randomInt(0,tierWordArr.length-1)] + ' ' + state.playerSkills.name[skillIndex];
-    }
-    // already upgraded skills get their old prefixes removed
-    else{
-      // Sanitize old upgraded skill name (remove existing prefix if present)
-      words = oldSkillName.split(' ');
-      baseName = words.length > 1 ? words.slice(1).join(' ') : oldSkillName;
-
-      // Apply new prefix
-      newPrefix = tierWordArr[randomInt(0, tierWordArr.length - 1)];
-      state.playerSkills.name[skillIndex] = `${newPrefix} ${baseName}`;
-    }
-    
-    //Notify in player input
-    text = text + ` Your ${oldSkillName} skill has been upgraded to ${state.playerSkills.name[skillIndex]}!`;
-
-    return text;
-  }
-
-  return text;
-}
-
-
-function upgradePlayerSkills(text){
-  state.playerSkills.name.forEach((skill,index) => {
-    text = skillNameUpgrade(5,index,upgradeTier1,text);
-    text = skillNameUpgrade(10,index,upgradeTier2,text);
-    text = skillNameUpgrade(15,index,upgradeTier3,text);
-    text = skillNameUpgrade(20,index,upgradeTier4,text);
-    text = skillNameUpgrade(25,index,upgradeTier5,text);
-
-  })
-
-  storeSkillsToSC();
   return text;
 }
 
@@ -3374,17 +3664,13 @@ state.playerTalents = state.playerTalents || {
   lvl: [],
   cost: []
 };
-log("state.playerTalents.name : " + state.playerTalents.name);
-log("state.playerTalents.lvl : " + state.playerTalents.lvl);
-log("state.playerTalents.cost : " + state.playerTalents.cost);
-
 
 state.potentialTalents = state.potentialTalents || {
   name: [],
   exp: []
 };
 
-//Always CREATE initial sc if none.
+// CREATE initial SC if none.
 function createIfNoTalentSC(){
   //If "Player Talents" card doesn't exist, create it
   if (!storyCards.find(sc => sc.title === "Player Talents")) {
@@ -3397,7 +3683,7 @@ function createIfNoTalentSC(){
   } 
 }
 
-//To STORE talent to sc
+// To STORE talent to sc
 function storeTalentsToSC(){
   //Fetch talent sc
   const talentSC = storyCards.find(sc => sc.title === "Player Talents");
@@ -3407,22 +3693,21 @@ function storeTalentsToSC(){
 
   // Trim notes on char limit to prevent memory overfill
   if (talentSC.description.length > 3000) {
-    halfIndex = Math.floor(talentSC.description.length / 2);
+    halfIndex = Math.floor(talentSC.description.length / 3);
     talentSC.description = talentSC.description.slice(0, halfIndex);
 
-    console.log("Trimming talentSC description to prevent memory overload.");
+    log("Trimming talentSC description to prevent memory overload.");
   }
 
   return true;
 }
 
-//To RETRIEVE talent from SC.
-//Put in output script so retreiving is not limited to on input.
-function retrieveTalentsFromSC(){ 
-  //Fetch talent sc
+// To RETRIEVE talent from SC. Put in output script so retreiving is not limited to on input.
+function retrieveTalentsFromSC() {
+  // Fetch SC
   const talentSC = storyCards.find(sc => sc.title === "Player Talents")
 
-  //Hold the talent sc entry string
+  // Hold the talent sc entry string
   temp = talentSC.entry;
 
   nameHolder = [];
@@ -3433,33 +3718,33 @@ function retrieveTalentsFromSC(){
   let matches = temp.matchAll(/(.+?)\s*\(.*?(\d+(?:\.\d+)?).*?\)\s*\(.*?(\d+(?:\.\d+)?).*?\)/g);
 
   // Store in respective arrays holders
-  for(const match of matches){
+  for (const match of matches) {
     // First capture group (talent name)
-    nameHolder.push(match[1]); 
+    nameHolder.push(match[1]);
     // Second capture group (talent lvl to number)
-    lvlHolder.push(Number(match[2])); 
+    lvlHolder.push(Number(match[2]));
     //Third, talent cost to number
-    costHolder.push(Number(match[3])); 
+    costHolder.push(Number(match[3]));
   }
-  
-  //Final store to code base
+
+  // Finally store to code base
   state.playerTalents.name = nameHolder;
   state.playerTalents.lvl = lvlHolder
   state.playerTalents.cost = costHolder;
+
+  log("state.playerTalents.name : " + state.playerTalents.name);
+  log("state.playerTalents.lvl : " + state.playerTalents.lvl);
+  log("state.playerTalents.cost : " + state.playerTalents.cost);
 }
 
-/////////////////////////////////////////////////////////////////////////////////////
-
-///Talent Learning Process: player learning talents repeatedly result in the talent name appearing more often in input. Assign more points to text that is most likely to be the talent name, and designate threshold to store as talent.
-//NOTE: Talent learning happens on input and finishes after getting energy cost on output. Retreiving talents between process will wipe data.
+// Weighs learning input tokens based on frequency to create and store new talents after set turns. NOTE: Talent learning happens on input and finishes after getting energy cost on output. Retreiving talents between process will wipe data.
 function talentLearningProcess(text){
   startLearning = false;
 
   // Verify player is not dialoguing (case-insensitive)
   dialogueCheck = true;
-  textLower = text.toLowerCase();
   dialoguePhrases.forEach(phrase => {
-    if(textLower.includes(phrase.toLowerCase())){
+    if(text.toLowerCase().includes(phrase.toLowerCase())){
       // Disable check dialoguing exists
       dialogueCheck = false;
     }
@@ -3469,7 +3754,7 @@ function talentLearningProcess(text){
   if(dialogueCheck == true){
     learnTextInput = []
     learnTextInput = findTargetsThenSplit(text,learnWords,learnTextInput,true);
-    console.log("learnTextInput: " + learnTextInput);
+    log("learnTextInput: " + learnTextInput);
   
     //If there are learn words, then get their indices
     if(learnTextInput != null){
@@ -3481,8 +3766,8 @@ function talentLearningProcess(text){
       if(allLearnWordIndices != null){
         //Check if there is a "you" three words before each learn word index to unlock
         startLearning = checkYouBeforeIndicesArr(learnTextInput,allLearnWordIndices,3) || checkAndBeforeIndicesArr(learnTextInput,allLearnWordIndices,2);
-        console.log("allLearnWordIndices: " + allLearnWordIndices);
-        console.log("startLearning: " + startLearning);
+        log("allLearnWordIndices: " + allLearnWordIndices);
+        log("startLearning: " + startLearning);
       }
     }
   }
@@ -3501,7 +3786,7 @@ function talentLearningProcess(text){
     if(likelyTalentNames.length > 0){
       //remove duplicates so player cant spam learn talents in one input
       likelyTalentNames = [...new Set(likelyTalentNames)]
-      console.log("likelyTalentNames: " + likelyTalentNames);
+      log("likelyTalentNames: " + likelyTalentNames);
 
       //Table of values influencing amt of turns to learn talent/likelihood of filtered input being a talent
       state.points = {
@@ -3581,7 +3866,7 @@ function talentLearningProcess(text){
         //Capitalize the talent, merge all individual string names in holder into the final talent name
         talentNameHolder = talentNameHolder.map(word => word[0].toUpperCase() + word.slice(1).toLowerCase());
         talentNameHolder = talentNameHolder.join(" ");
-        console.log("talentNameHolder: " + talentNameHolder);
+        log("talentNameHolder: " + talentNameHolder);
 
         //Store the learned talent, dont add duplicates to player talent
         if(!state.playerTalents.name.includes(talentNameHolder) && !state.playerSkills.name.includes(talentNameHolder)){
@@ -3593,13 +3878,13 @@ function talentLearningProcess(text){
             state.potentialTalents.exp[i] -= state.points.outpaced;
           }
 
-          //Energy cost determined by AI output, unlock on output function
+          // Energy cost determined by AI output, unlock on output function
           state.askEnergyCost = true;
-          log("askEnergyCost in: "+ state.askEnergyCost);
+          log("askEnergyCost: " + state.askEnergyCost);
           
           //Talent Learn Success Message
           text = text + " You end up successfully learning the \"" + String(talentNameHolder) + "\" talent! You check how many energy points the talent requires.";
-          console.log("state.playerTalents.name after learning: " + state.playerTalents.name);
+          log("state.playerTalents.name after learning: " + state.playerTalents.name);
 
           
         }//end of store learned talent
@@ -3608,13 +3893,14 @@ function talentLearningProcess(text){
     
   }//end of right conditions met so process talent learning
 
-  console.log("state.potentialTalents.name: " + state.potentialTalents.name);
-  console.log("state.potentialTalents.exp: " + state.potentialTalents.exp);
+  log("state.potentialTalents.name: " + state.potentialTalents.name);
+  log("state.potentialTalents.exp: " + state.potentialTalents.exp);
+
   return text;
 }//end of function
-log("askEnergyCost out: "+ state.askEnergyCost);
 
-//Use in output script. Final code for learning process. Gets energy cost and then stores learned talent and cost into sc.
+
+// Succeeds talentLearningProcess. Gets energy cost from Output Hook and then stores learned talent and cost into sc.
 function getEnergyCost(text){
   if(state.askEnergyCost == true){
     // Extract numbers from the output string
@@ -3634,24 +3920,24 @@ function getEnergyCost(text){
     highestEnergyValue = arrEnergyValue.length > 0 ? Math.max(...arrEnergyValue) : null;
     log("highestEnergyValue: " + highestEnergyValue);
 
-    //Use highest number in output as energy cost of talent
+    // Use highest number in output as energy cost of talent
     if(highestEnergyValue !== null && highestEnergyValue > 0){
       state.playerTalents.cost.push(highestEnergyValue);
-      console.log("state.playerTalents.cost(AI) after learning: " + state.playerTalents.cost);
+      log("state.playerTalents.cost(AI) after learning: " + state.playerTalents.cost);
     }
     else{
-      //If no energy value in output, use random energy value
+      // If no energy value in output, use random energy value
       randEpCost = randomInt(5,30);
       state.playerTalents.cost.push(randEpCost);
-      console.log("randEpCost: " + randEpCost);
+      log("randEpCost: " + randEpCost);
 
       text ="\"" + state.playerTalents.name[state.playerTalents.name.length-1] + "\" will cost " + state.playerTalents.cost[state.playerTalents.cost.length-1] + " energy to use. " + text;
     }
     
-    //Successful Learning grants int
+    // Learning grants intl
     statUp("intl",randomFloat(0.01,2));
 
-    //Learned talent name and cost have been finalized. Store them to SC.
+    // Learned talent name and cost have been finalized. Store them to SC.
     storeTalentsToSC();
     storeStatsToSC();
 
@@ -3663,411 +3949,816 @@ function getEnergyCost(text){
   return text;
 }
 
-/////////////////////////////////////////////////////////////////////////////////////
+// Applies a name upgrade to a talent once level floor is reached
+function talentNameUpgrade(level, talentIndex, tierWordArr, text) {
+  if (Math.floor(state.playerTalents.lvl[talentIndex]) == level) {
+    // Increase level to prevent repeated upgrades
+    state.playerTalents.lvl[talentIndex] = level + 1;
 
-//Given an arr of words and an array of player storage (inv, talents, skills), check if anything from storage is mentioned in words arr and returns partialTF,full matchTF,storageindex
-function checkPlayerStorage(text,wordsArr,playerStorage){
-  hasThing = false;
-  hasFullThing = false;
-  finalThingIndex = false;
-  ind = [];
+    // Energy cost reduction (if applicable)
+    state.playerTalents.cost[talentIndex] = Math.round(state.playerTalents.cost[talentIndex] * 0.95 * 100) / 100;
 
-  //Check if player has anything that PARTIALLY matches the input text
-  //Loop through input words
-  wordsArr.forEach((word, index1) => {
-    //get the lower case version of the word
-    loweredWord = word.toLowerCase();
-    //loop through player things names
-    playerStorage.forEach((thing, index2) => {
-      // Get the lower case version of the thing name
-      loweredThing = thing.toLowerCase();
-      
-      // Check if the word is long enough and if it matches part of the thing name
-      if (loweredWord.length >= 4 && loweredThing.includes(loweredWord)) {
-        hasThing = true;
-        ind.push(index2);
-      }
-      //Else Check if the word matches the prefix of the thing name
-      else if (loweredThing.startsWith(loweredWord) && loweredWord.length >= 3) {
-          hasThing = true;
-          ind.push(index2);
-        }
-      //Else Check if the word matches the suffix of the thing name
-      else if (loweredThing.endsWith(loweredWord) && loweredWord.length >= 3) {
-          hasThing = true;
-          ind.push(index2);
-        }
+    // Store old talent name
+    const oldTalentName = state.playerTalents.name[talentIndex];
 
-    });//end of thing loop
-  });//end of input word loop
-  log("hasThing: " + hasThing);
+    // Apply prefix logic
+    if (tierWordArr === upgradeTier1) {
+      // No previous prefix assumed
+      state.playerTalents.name[talentIndex] = tierWordArr[randomInt(0, tierWordArr.length - 1)] + ' ' + oldTalentName;
+    } else {
+      // Remove previous prefix (assumes format: "Prefix TalentName")
+      const words = oldTalentName.split(' ');
+      const baseName = words.length > 1 ? words.slice(1).join(' ') : oldTalentName;
 
-  //Continue if partial thing matched, which means storage has at least one thing that is mentioned in text
-  if (ind.length > 0) {
-    //From all thing matches, pick a random one to be the returned thing.
-    finalThingIndex = ind[Math.floor(Math.random() * ind.length)];
-
-    //Check for EXACT thing matches which overrides PARTIAL thing matches
-    textLower = text.toLowerCase();
-
-    //loop through player things
-    playerStorage.forEach((thing, index) => {
-      //Compare input text and player things for exact matches to override final index and flag full thing match.
-      if (textLower.includes(thing.toLowerCase())) {
-        finalThingIndex = index;
-        hasFullThing = true;
-      }
-    })
-    log("finalThingIndex: " + finalThingIndex);
-  }
-
-  return [hasThing,hasFullThing,finalThingIndex];
-}
-
-//Talents that are casted become a skill
-function talentCastedToSkill(){
-  if(talentCheck[0]){
-    castIndicesExist = indicesOfTargets(plrActionTextInput,castWords);
-    if(castIndicesExist){
-      //Move talent to skill storage
-      state.playerSkills.name.push(state.playerTalents.name[talentCheck[2]]);
-      state.playerSkills.lvl.push(state.playerTalents.lvl[talentCheck[2]]);
-      state.playerSkills.cost.push(state.playerTalents.cost[talentCheck[2]]);
-
-      //Remove old copy of talent
-      state.playerTalents.name.splice(talentCheck[2],1);
-      state.playerTalents.lvl.splice(talentCheck[2],1);
-      state.playerTalents.cost.splice(talentCheck[2],1);
-
-      //Final store to SC
-      storeTalentsToSC();
-      storeSkillsToSC();
+      // Apply new prefix
+      const newPrefix = tierWordArr[randomInt(0, tierWordArr.length - 1)];
+      state.playerTalents.name[talentIndex] = `${newPrefix} ${baseName}`;
     }
 
+    // Notify player
+    text += ` Your ${oldTalentName} talent has been upgraded to ${state.playerTalents.name[talentIndex]}!`;
+
+    return text;
   }
+
+  return text;
 }
 
-//executes the talent if player has enough energy
-function executeTalent(){
-  //must pass talent check
-  if(talentCheck[0]){
-    //Allow talent if player has enough energy otherwise do nothing
-    if(hasEnergy == true){
-      //If player has the EXACT talent
-      if(fullTalentMatch == true){
-        //Subtract ep cost from player ep
-        statUp("ep", -1 * state.playerTalents.cost[talentIndex]);
-        storeStatsToSC();
-
-        postActionText = postActionText + state.playerTalents.name[talentIndex] + " talent consumes energy and successfully executes.";
-      }//todo: change text
-      else{ //If only PARTIAL talent matches, harness available talent
-        //Subtract ep cost from player ep
-        state.playerStats.en -= state.playerTalents.cost[talentIndex];
-        storeStatsToSC();
-
-        postActionText = postActionText + " You attempt to harness your existing " + state.playerTalents.name[talentIndex] + " talent.";
-
-        postActionText = postActionText.replace(">","");
-      }
-
-      //Using talents levels them up
-      talentExp = randomFloat(0,0.5);
-      log("talentExp: "+ talentExp);
-      state.playerTalents.lvl[talentIndex] += talentExp;
-      state.playerTalents.lvl[talentIndex] = Math.round(state.playerTalents.lvl[talentIndex] * 100)/100;
-      storeTalentsToSC();
-
-      //Log talent lvl change in talent sc notes
-      const talentSC = storyCards.find(sc => sc.title === "Player Talents")   
-      talentSC.description = `Log ${state.turnCount} | ${state.playerTalents.name[talentIndex]} gained ${talentExp.toFixed(2)} exp.` + talentSC.description;
-
-    }//end of has energy
-  }//end of talent check
-}
-
-//executes the skill if player has enough energy otherwise do nothing
-function executeSkill(){
-  //Must pass skill check
-  if(skillCheck[0]){
-
-    //Allow skill if player has enough mana
-    if(hasMana == true){
-      //If player has the EXACT skill
-
-      if(fullSkillMatch == true){
-        //Subtract mana cost from player mana and create text
-        statUp("mp",state.playerSkills.cost[skillIndex] * -1);
-
-        //Using skills boost stats
-        statUp("atk",randomFloat(0.01,0.5));
-        statUp("intl", randomFloat(0.01,0.5));
-        storeStatsToSC();
-        
-        // Define the ranges of skill effectiveness and the corresponding skill power messages
-        const skillPowerRanges = [
-          { min: 0, max: 10, msg: skillPower1 },
-          { min: 10, max: 20, msg: skillPower2 },
-          { min: 20, max: 30, msg: skillPower3 },
-          { min: 30, max: 40, msg: skillPower4 },
-          { min: 40, max: 50, msg: skillPower5 },
-          { min: 50, max: 60, msg: skillPower6 },
-          { min: 60, max: 70, msg: skillPower7 },
-          { min: 70, max: 80, msg: skillPower8 },
-          { min: 80, max: 90, msg: skillPower9 },
-          { min: 90, max: Infinity, msg: skillPower10 }
-        ];
-
-        //Select msg based on skill level
-        skillLevel = state.playerSkills.lvl[skillIndex];
-
-        for (let range of skillPowerRanges) {
-          if (skillLevel >= range.min && skillLevel < range.max) {
-            postActionText = postActionText + " " + range.msg[randomInt(0, range.msg.length - 1)].replace("[Skill]", state.playerSkills.name[skillIndex]);
-            break;
-          }
-        }
-      }
-      // If only PARTIAL skill matches, harness available skills
-      else{ 
-        // Subtract mana cost from player mana and create text
-        state.playerStats.mp -= state.playerSkills.cost[skillIndex];
-
-        // Using skills boost stats
-        statUp("atk", randomFloat(0.01,0.5));
-        statUp("intl", randomFloat(0.01,0.5));
-        storeStatsToSC();
-
-        // Append skill harness text
-        const randomIndex = randomInt(0, harnessSkill.length - 1);
-        const skillText = harnessSkill[randomIndex].replace("[Skill]", state.playerSkills.name[skillIndex]);
-        postActionText += ` ${skillText}`;
-
-        postActionText = postActionText.replace(">","");
-      }
-      
-      // Save current as old skill lvl for logging
-      oldSkillLvl = state.playerSkills.lvl[skillIndex];
-
-      // Gain experience in skills, which contributes to leveling them up
-      skillExp = randomFloat(0, 0.8);
-      log("skillExp: " + skillExp); 
-
-      // Increase the skill's level by the generated experience
-      state.playerSkills.lvl[skillIndex] += skillExp;
-
-      // Round the skill level to two decimal places for accuracy and consistency
-      state.playerSkills.lvl[skillIndex] = Math.round(state.playerSkills.lvl[skillIndex] * 100) / 100;
-
-      // Save the updated skill data to the storage container
-      storeSkillsToSC();
-
-      //Log skill lvl change in skill sc notes
-      const skillSC = storyCards.find(sc => sc.title === "Player Skills")   
-      skillSC.description = `Log ${state.turnCount} | ${state.playerSkills.name[skillIndex]} gained ${skillExp.toFixed(2)} lvl. Lvl ${oldSkillLvl} => ${state.playerSkills.lvl[skillIndex]}\n` + skillSC.description;
-
-    }//end of has mana
-  }
-}
-
-// After skill and talent checks, this function detects if the player is performing a heal action and executes the healing process. Defaults to skill healing if both talent and skill healing are available.
-function detectTalentSkillHeal(){
-  // Player must pass at least one of the talent or skill checks to perform a healing action
-  if(talentCheck[0] || skillCheck[0]){
-    healingSelf = false;
-
-    //// Check if the player is performing a healing action. Use text b/c inp targetwords were simplified
-    healing = cleanStringCheckForTargets(healingActions,text);
-    log("healing: " + healing);
-
-    // Check if the player is attempting to heal themselves
-    healingSelf = cleanStringCheckForTargets(selfWords,text);
-    log("healingSelf: " + healingSelf);
-
-    // If both a healing action and self-healing are detected, proceed with healing based on talent or skill level
-    if(healing && healingSelf){
-      getLvl = [];
-
-      // If the player has a talent that passed the check, push its level into the getLvl array
-      if(talentCheck[0]){
-        getLvl.push(state.playerTalents.lvl[talentCheck[2]]);
-      }
-
-      // If the player has a skill that passed the check, push its level into the getLvl array
-      if(skillCheck[0]){
-        getLvl.push(state.playerSkills.lvl[skillCheck[2]]);
-      }
-      log("getLvl: " + getLvl);
-      
-      // If only one skill or talent passed, the array will contain one level value.
-      // Calculate healing amount based on the single level and heal the player.
-      if(getLvl.length == 1){
-        healAmt = getLvl[0] * 3;
-        log('healAmt: '+ healAmt);
-        statUp("hp",healAmt);
-        postActionText = postActionText + " You feel better as you recover some health."
-      }
-      
-      // If both a skill and talent passed, use the skill level for healing (default to skill if both are available)
-      if(getLvl.length == 2){
-        healAmt = getLvl[1] * 3;
-        log('healAmt: '+ healAmt);
-        statUp("hp",healAmt);
-        postActionText = postActionText + " You feel better as you recover some health."
-      }
-    }
-
-
-  }
-}
-
-//Main action function. Checks for "you + actions" that require items, talents, or skills. Checks if player has something to fulfill it and executes it along with text result
-function detectPlrActionsCallingStorage(text){
-  startAction = false;
-  
-  // Verify player is not dialoguing (case-insensitive)
-  dialogueCheck = true;
-  textLower = text.toLowerCase();
-  dialoguePhrases.forEach(phrase => {
-    if(textLower.includes(phrase.toLowerCase())){
-      // Disable check dialoguing exists
-      dialogueCheck = false;
-    }
+function upgradePlayerTalents(text) {
+  state.playerTalents.name.forEach((talent, index) => {
+    text = talentNameUpgrade(10, index, upgradeTier1, text);
+    text = talentNameUpgrade(20, index, upgradeTier2, text);
+    text = talentNameUpgrade(30, index, upgradeTier3, text);
+    text = talentNameUpgrade(40, index, upgradeTier4, text);
+    text = talentNameUpgrade(50, index, upgradeTier5, text);
   });
 
-  //If player is not dialoguing, check input for action words and split the input
-  if(dialogueCheck == true){
-    allActionWords = [...castWords,...talentWords,...healingActions];
-    plrActionTextInput = [];
-    plrActionTextInput = findTargetsThenSplit(text,allActionWords,plrActionTextInput,true);
-    console.log("plrActionTextInput simplified: " + plrActionTextInput);
+  storeTalentsToSC();
+  return text;
+}
 
-    //If input has action words get their indices
-    if(plrActionTextInput != null){
-      allActionWordIndices = [];
-      allActionWordIndices = indicesOfTargets(plrActionTextInput,allActionWords);
-      log("allActionWordIndices:" + allActionWordIndices);
+///////////////////////////////////////////////////////////////////////////////////
 
-      //Detect if there is  "you + actionword" or "and + actionword"
-      if(allActionWordIndices != null){
-        startAction = checkYouBeforeIndicesArr(plrActionTextInput,allActionWordIndices,3) || checkAndBeforeIndicesArr(plrActionTextInput,allActionWordIndices,2);
-        log("startAction: " + startAction);
-      }
-    }
+//Initialize player skills
+state.playerSkills = state.playerSkills || {
+  name: [],
+  lvl: [],
+  cost: []
+};
+
+///Player skills will be stored in an sc. CREATE initial sc. Skills will STORE TO or RETREIVE FROM sc.
+
+// Function to create new class skills for player and store to their skills
+function newClassSkills(classString,skillArray){
+  plotEssentials = state.memory.context.toLowerCase();
+  if(plotEssentials.includes(classString + " class")){
+    state.playerSkills.name = [
+      skillArray[randomInt(0,skillArray.length-1)],skillArray[randomInt(0,skillArray.length-1)],skillArray[randomInt(0,skillArray.length-1)]
+    ];
+    state.playerSkills.lvl = [
+      randomInt(0,3),
+      randomInt(0,3),
+      randomInt(0,3)
+    ];
+    state.playerSkills.cost = [
+      randomInt(10,40),
+      randomInt(10,40),
+      randomInt(10,40)
+    ];
+
+    storeSkillsToSC();
+  }
+}
+
+//Always CREATE initial sc if none.
+function createIfNoSkillSC(){
+  //If "Player Skills" card doesn't exist, create it
+  if (!storyCards.find(sc => sc.title === "Player Skills")) {
+    addStoryCard("Player Skills", "Blank", "Player Stats");
+
+    //Fetch SC and give it a description
+    const skillSC = storyCards.find(sc => sc.title === "Player Skills")   
+    skillSC.description = "Format for Modifying: SkillName (LVL) (MP), etc.";
+
+    //Mage, Healer, Swordsmen, Priest, Tank, Paladin, Hero, Custom
+    //Classes and the skills they start with
+    newClassSkills('mage',beginnerMageSpells);
+    newClassSkills('sorcerer', beginnerMageSpells);
+    newClassSkills('healer',beginnerHealerSkills);
+    newClassSkills('swordsman',beginnerSwordsmanSkills);
+    newClassSkills('priest',beginnerPriestSkills);
+    newClassSkills('tank',beginnerTankSkills);
+    newClassSkills('paladin',beginnerPaladinSkills);
+    newClassSkills('hero',beginnerHeroSkills);
+    //todo: simplify
+
+  } 
+}
+
+//To STORE skill to sc
+function storeSkillsToSC(){
+  //Fetch skill sc
+  const skillSC = storyCards.find(sc => sc.title === "Player Skills");
+
+  //Format and display to sc Ex: Fireball (20 MP)
+  skillSC.entry = state.playerSkills.name.map((skill, index) => `${skill} (Lvl ${state.playerSkills.lvl[index]}) (${state.playerSkills.cost[index]} MP)`).join("\n");
+
+  // Trim notes on char limit to prevent memory overfill
+  if (skillSC.description.length > 3000) {
+    halfIndex = Math.floor(skillSC.description.length / 3);
+    skillSC.description = skillSC.description.slice(0, halfIndex);
+
+    log("Trimming skillSC description to prevent memory overload.");
+  }
+}
+
+// To RETRIEVE skills from SC. Put in output script so retreiving is not limited to on input.
+function retrieveSkillsFromSC() {
+  //Fetch skill sc
+  const skillSC = storyCards.find(sc => sc.title === "Player Skills")
+
+  //Hold the skill sc entry string
+  temp = skillSC.entry;
+
+
+  skillHolder = [];
+  lvlHolder = [];
+  costHolder = [];
+  // Extract skill name and MP cost using regex. Discard wrong formats
+  let matches = temp.matchAll(/(.+?)\s*\(.*?(\d+(?:\.\d+)?).*?\)\s*\(.*?(\d+(?:\.\d+)?).*?\)/g);
+
+  // Store in respective arrays holders
+  for (const match of matches) {
+    // First capture group (skill name)
+    skillHolder.push(match[1]);
+    // Second capture group (skill lvl)
+    lvlHolder.push(Number(match[2]));
+    // Third (skill cost)
+    costHolder.push(Number(match[3]))
   }
 
-  if(startAction == true){
-    //Intialize arrays [hasthing,hasfullthing,finalthingindex]
-    itemCheck = [false,false,false];
-    talentCheck = [false,false,false];
-    skillCheck = [false,false,false];
-    postActionText = "";
-    notEnoughText = "";
+  //Final store to code base
+  state.playerSkills.name = skillHolder;
+  state.playerSkills.lvl = lvlHolder;
+  state.playerSkills.cost = costHolder;
 
-    //Check if player storage has thing used in input text available then returns [hasthing, hasfullthing, finalthingindex]
-    itemCheck = checkPlayerStorage(text,plrActionTextInput,state.playerInv.item);
-    log("itemCheck: " + itemCheck);
+  log("state.playerSkills.name: " + state.playerSkills.name);
+  log("state.playerSkills.lvl: " + state.playerSkills.lvl);
+  log("state.playerSkills.cost: " + state.playerSkills.cost);
+}
 
-    talentCheck = checkPlayerStorage(text,plrActionTextInput,state.playerTalents.name);
-    log("talentCheck: " + talentCheck);
-    //If player passes talent check, and casted the talent, it registers as skill
-    talentCastedToSkill();
+// Part of upgradePlayerSkills, applies skill name change once lvlfloor is reached
+function skillNameUpgrade(level,skillIndex,tierWordArr,text){
+  if(Math.floor(state.playerSkills.lvl[skillIndex]) == level){
+    //Level up skill to avoid another upgrade
+    state.playerSkills.lvl[skillIndex] = level + 1;
 
-    skillCheck = checkPlayerStorage(text,plrActionTextInput,state.playerSkills.name);
-    log("skillCheck: " + skillCheck);
+    //Mana cost reduction
+    state.playerSkills.cost[skillIndex] = Math.round(state.playerSkills.cost[skillIndex] * 0.95 * 100) / 100;
     
-    // Pipeline order is item>talent>skill
-    // If player has the ITEM, get its success or fail text
-    if(itemCheck[0]){
-      hasAmt = false;
-      fullItemMatch = itemCheck[1];
-      itemIndex = itemCheck[2];
+    //store old skill name
+    oldSkillName = state.playerSkills.name[skillIndex];
+
+    //Update skill name
+    if(tierWordArr == upgradeTier1){
+      state.playerSkills.name[skillIndex] = tierWordArr[randomInt(0,tierWordArr.length-1)] + ' ' + state.playerSkills.name[skillIndex];
     }
-
-    // If player has the TALENT, check if they have enough ep, else make reject text
-    if(talentCheck[0]){
-      fullTalentMatch = talentCheck[1]; 
-      talentIndex = talentCheck[2];
-
-      // Check if player energy is enough for the talent
-      hasEnergy = state.playerStats.ep >= state.playerTalents.cost[talentIndex];
-      console.log("hasEnergy: " + hasEnergy);
-
-      // Create reject talent text if player doesnt have enough energy and revoke check
-      if(hasEnergy == false){
-        talentCheck[0] = false;
-        notEnoughText = notEnoughText + " Suddenly, you realize you dont have enough energy for " + state.playerTalents.name[talentIndex] + ".";
-      }
-    }//end of has talent
-
-    // If player has the SKILL, check if they have enough mp, else make reject text
-    if(skillCheck[0]){
-      fullSkillMatch = skillCheck[1]; 
-      skillIndex = skillCheck[2];
-
-      // Check if player mana is enough for the skill
-      hasMana = state.playerStats.mp >= state.playerSkills.cost[skillIndex];      
-      console.log("hasMana: " + hasMana);
-
-      // Create reject skill text if player doesnt have enough mana and revoke check
-      if(hasMana == false){
-        skillCheck[0] = false;
-        notEnoughText = " Suddenly, you realize you don't have enough mana for " + state.playerSkills.name[skillIndex] + ".";
-      }
-
-    }//end of has skill
-
-    // If talent and skill are both available, default to using skill so both dont execute together
-    if(talentCheck[0] && skillCheck[0]){
-      executeSkill();
-    }
-    // Otherwise execute available action, or do nothing for no actions available
+    // already upgraded skills get their old prefixes removed
     else{
-      executeTalent();
-      executeSkill();
+      // Sanitize old upgraded skill name (remove existing prefix if present)
+      words = oldSkillName.split(' ');
+      baseName = words.length > 1 ? words.slice(1).join(' ') : oldSkillName;
+
+      // Apply new prefix
+      newPrefix = tierWordArr[randomInt(0, tierWordArr.length - 1)];
+      state.playerSkills.name[skillIndex] = `${newPrefix} ${baseName}`;
     }
+    
+    //Notify in player input
+    text = text + ` Your ${oldSkillName} skill has been upgraded to ${state.playerSkills.name[skillIndex]}!`;
 
-    // Checks for healing and executes it. Defaults to skill heal if both talent and skill work
-    detectTalentSkillHeal();
+    return text;
+  }
 
-    // Finalize action execution by appending text
-    if(itemCheck[0]|| talentCheck[0] || skillCheck[0]){
-      text = text + postActionText;
-      return text;
-    }
-
-    // If plr fails all checks, finalize action rejection
-    if(!itemCheck[0] && !talentCheck[0] && !skillCheck[0]){
-      // Failure Condition 1: plr passed a/all check but then failed all b/c no ep/mp/item amt
-      if(notEnoughText.length > 0){
-        text = text + notEnoughText;
-        return text;
-      }
-      // Failure Condition 2: nonexistent in storage 
-      else{ 
-        text = text + ` ${realizePhrases[randomInt(0,realizePhrases.length-1)]} ${becauseYouPhrases[randomInt(0,becauseYouPhrases.length-1)]} ${assumedWrongPhrases[randomInt(0,assumedWrongPhrases.length-1)]}, ${slightlyWorseResults[randomInt(0,slightlyWorseResults.length-1)]}.`
-        return text;
-      }      
-    }
+  return text;
+}
 
 
-  }//end of start action
+function upgradePlayerSkills(text){
+  state.playerSkills.name.forEach((skill,index) => {
+    text = skillNameUpgrade(10,index,upgradeTier1,text);
+    text = skillNameUpgrade(20,index,upgradeTier2,text);
+    text = skillNameUpgrade(30,index,upgradeTier3,text);
+    text = skillNameUpgrade(40,index,upgradeTier4,text);
+    text = skillNameUpgrade(50,index,upgradeTier5,text);
 
+  })
+
+  storeSkillsToSC();
   return text;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-//Check if player is first entering, then is entering into rest, and replenish their stats according to their rest intensity
+// Converts talents that are casted into a skill by detecting if closest action word of talent is a cast word
+function talentCastedToSkill(wordsArr, talentIndex, actionWordIndices) {
+  // Get index of talent from input
+  let i_talentInput = indexOfStr(state.playerTalents.name[talentIndex], wordsArr);
+  //log('i_talentInput: ' + i_talentInput);
+
+  // After get index check if closest action word is a cast word
+  if (i_talentInput >= 0) {
+    let closestIndex = closestIndexBeforeTarget(actionWordIndices, i_talentInput);
+    //log('closestIndex: ' + closestIndex);
+
+    // Turn talent to skill if closest action word is a cast word
+    if (castWords.includes(wordsArr[closestIndex].toLowerCase())) {
+      state.playerSkills.name.push(state.playerTalents.name[talentIndex]);
+      state.playerSkills.lvl.push(state.playerTalents.lvl[talentIndex]);
+      state.playerSkills.cost.push(state.playerTalents.cost[talentIndex]);
+
+      state.playerTalents.name.splice(talentIndex, 1);
+      state.playerTalents.lvl.splice(talentIndex, 1);
+      state.playerTalents.cost.splice(talentIndex, 1);
+
+      storeTalentsToSC();
+      storeSkillsToSC();
+    }
+  }
+}
+
+
+// Creates a partial or full talent use flavor text
+function executeTalent(fullTalentFlag, index) {
+  talentFlavorText = "";
+  energyCost = state.playerTalents.cost[index];
+
+  // Subtract ep cost from player ep
+  statUp("ep", -1 * energyCost);
+  storeStatsToSC();
+
+  // Using talents boost stats
+  statUp("intl", randomFloat(0.01, 0.8));
+  storeStatsToSC();
+
+  // Override normal skill text if healing skill
+  healResult = detectHeal("talent", index);
+  if (healResult[0]) {
+    talentFlavorText = ` ${healResult[1]}`;
+  }
+  else {
+    // Create flavor text if FULL talent
+    if (fullTalentFlag) {
+      // Define the ranges of talent effectiveness and the corresponding talent power messages
+      const talentPowerRanges = [
+        { min: 0, max: 10, msg: talentPower1 },
+        { min: 10, max: 20, msg: talentPower2 },
+        { min: 20, max: 30, msg: talentPower3 },
+        { min: 30, max: 40, msg: talentPower4 },
+        { min: 40, max: 50, msg: talentPower5 },
+        { min: 50, max: 60, msg: talentPower6 },
+        { min: 60, max: 70, msg: talentPower7 },
+        { min: 70, max: 80, msg: talentPower8 },
+        { min: 80, max: 90, msg: talentPower9 },
+        { min: 90, max: Infinity, msg: talentPower10 }
+      ];
+
+      // Create talent flavor text
+      talentLevel = state.playerTalents.lvl[index];
+
+      for (let range of talentPowerRanges) {
+        if (talentLevel >= range.min && talentLevel < range.max) {
+          talentFlavorText = ` ${range.msg[randomInt(0, range.msg.length - 1)].replace("[Talent]", state.playerTalents.name[index])}`;
+          break;
+        }
+      }
+    }
+    // Create flavor text for PARTIAL talent
+    else {
+      talentFlavorText = ` You attempt to harness your existing ${state.playerTalents.name[index]} talent.`
+    }
+  }
+
+  // Save current as old talent lvl for logging
+  oldTalentLvl = state.playerTalents.lvl[index];
+
+  // Using talents grants talent exp
+  talentExp = randomFloat(0, 0.8);
+  log("talentExp: " + talentExp);
+
+  // Increase the talent's level by the generated experience
+  state.playerTalents.lvl[index] += talentExp;
+
+  // Round the talent level to two decimal places
+  state.playerTalents.lvl[index] = Math.round(state.playerTalents.lvl[index] * 100) / 100;
+
+  // Log talent lvl change in talent sc notes
+  const talentSC = storyCards.find(sc => sc.title === "Player Talents");
+  talentSC.description = `Log ${state.turnCount} | ${state.playerTalents.name[index]} gained ${talentExp.toFixed(2)} lvl. Lvl ${oldTalentLvl} => ${state.playerTalents.lvl[index]}\n` + talentSC.description;
+
+  // Save the updated talent data to the storage container
+  storeTalentsToSC();
+
+  return talentFlavorText;
+}
+
+// Creates a partial or full skill use flavor text
+function executeSkill(fullSkillFlag, index) {
+  skillFlavorText = "";
+  manaCost = state.playerSkills.cost[index];
+
+  // Subtract mana cost from player mana
+  statUp("mp", manaCost * -1);
+
+  // Override normal skill text if healing skill
+  healResult = detectHeal("skill", index);
+  if (healResult[0]) {
+    skillFlavorText = ` ${healResult[1]}`;
+  }
+  else {
+    // Using skills boost stats
+    statUp("atk", randomFloat(0.01, 0.8));
+    statUp("intl", randomFloat(0.01, 0.8));
+    storeStatsToSC();
+
+    // Create flavor text if FULL SKILL
+    if (fullSkillFlag) {
+      // Define the ranges of skill effectiveness and the corresponding skill power messages
+      const skillPowerRanges = [
+        { min: 0, max: 10, msg: skillPower1 },
+        { min: 10, max: 20, msg: skillPower2 },
+        { min: 20, max: 30, msg: skillPower3 },
+        { min: 30, max: 40, msg: skillPower4 },
+        { min: 40, max: 50, msg: skillPower5 },
+        { min: 50, max: 60, msg: skillPower6 },
+        { min: 60, max: 70, msg: skillPower7 },
+        { min: 70, max: 80, msg: skillPower8 },
+        { min: 80, max: 90, msg: skillPower9 },
+        { min: 90, max: Infinity, msg: skillPower10 }
+      ];
+
+      // Create skill flavor text
+      skillLevel = state.playerSkills.lvl[index];
+
+      for (let range of skillPowerRanges) {
+        if (skillLevel >= range.min && skillLevel < range.max) {
+          skillFlavorText = ` ${range.msg[randomInt(0, range.msg.length - 1)].replace("[Skill]", state.playerSkills.name[index])}`;
+          break;
+        }
+      }
+    }
+    // Create flavor text if PARTIAL SKILL
+    else {
+      // Create skill harness flavor text
+      const randomIndex = randomInt(0, harnessSkill.length - 1);
+      skillFlavorText = ` ${harnessSkill[randomIndex].replace("[Skill]", state.playerSkills.name[index])}`;
+    }
+  }
+
+  // Save current as old skill lvl for logging
+  oldSkillLvl = state.playerSkills.lvl[index];
+
+  // Using skills grants skill exp
+  skillExp = randomFloat(0, 0.8);
+  log("skillExp: " + skillExp);
+
+  // Increase the skill's level by the generated experience
+  state.playerSkills.lvl[index] += skillExp;
+
+  // Round the skill level to two decimal places
+  state.playerSkills.lvl[index] = Math.round(state.playerSkills.lvl[index] * 100) / 100;
+
+  // Log skill lvl change in skill sc notes
+  const skillSC = storyCards.find(sc => sc.title === "Player Skills")
+  skillSC.description = `Log ${state.turnCount} | ${state.playerSkills.name[index]} gained ${skillExp.toFixed(2)} lvl. Lvl ${oldSkillLvl} => ${state.playerSkills.lvl[index]}\n` + skillSC.description;
+
+
+  // Save the updated skill data to the storage container
+  storeSkillsToSC();
+
+
+  return skillFlavorText;
+}
+
+// Detects if the player is performing a heal action and executes the healing process then returns healflag and flavor text
+function detectHeal(strgType, index) {
+  healFlavorText = "";
+  healFlag = false;
+  healingSelf = false;
+
+  // Check if the player is performing a healing action. Use text b/c inp targetwords were simplified
+  healing = cleanStringCheckForTargets(healingActions, text);
+  log("healing: " + healing);
+
+  // Check if the player is attempting to heal themselves
+  healingSelf = cleanStringCheckForTargets(selfWords, text);
+  log("healingSelf: " + healingSelf);
+
+  // If both a healing action and self-healing are detected, proceed with healing
+  if (healing && healingSelf) {
+    // Set heal flag to true
+    healFlag = true;
+    
+    //Healing self with item
+    if(strgType == "item"){
+      //todo: item heal
+    }
+    // Healing self with talent
+    if (strgType == "talent") {
+      // Heal amount scales with talent level and intl
+      healAmt = (0.1 * state.playerStats.intl) + (2 * state.playerTalents.lvl[index]);
+      log('healAmt: ' + healAmt);
+
+      // Apply heal to stats
+      statUp("hp", healAmt);
+
+      healFlavorText = healFlavorText + " You feel better as you recover some health."
+      //todo: edit text
+    }
+  }
+  // Heal self with skill
+  if (strgType = "skill") {
+    // Heal amt scales with skill level and intl
+    healAmt = (0.25 * state.playerStats.intl) + (2 * state.playerSkills.lvl[index]);
+    log('healAmt: ' + healAmt);
+
+    // Apply heal to stats
+    statUp("hp", healAmt);
+
+    healFlavorText = healFlavorText + " You feel better as you recover some health."
+  }
+
+  return [healFlag, healFlavorText];
+}
+
+// Child function of detectStorageCallActions. On context hook, feed the things in player's storage to the AI context
+function feedStrgToContext(text){
+  if(state.unlockStrgToContext){
+    text = text + state.strgCheckText;
+    log("state.strgCheckText: " + state.strgCheckText);
+  }
+  
+  state.unlockStrgToContext = false;
+
+  return text;
+}
+
+// Checks for "you + actions" that require items, talents, or skills. Checks if player has something to fulfill it and executes result along with text result
+function detectStorageCallActions(text) {
+  startAction = false;
+
+  // Verify player is not dialoguing (case-insensitive)
+  dialogueCheck = true;
+  dialoguePhrases.forEach(phrase => {
+    if (text.toLowerCase().includes(phrase.toLowerCase())) {
+      // Disable check dialoguing exists
+      dialogueCheck = false;
+    }
+  });
+
+  // Check input for action words and split the input
+  if (dialogueCheck == true) {
+    allActionWords = [...castWords, ...talentWords, ...healingActions];
+    actionTextInput = [];
+    actionTextInput = findTargetsThenSplit(text, allActionWords, actionTextInput, true);
+    log("actionTextInput simplified: " + actionTextInput);
+
+    // If input has action words get their indices
+    if (actionTextInput != null) {
+      allActionWordIndices = [];
+      allActionWordIndices = indicesOfTargets(actionTextInput, allActionWords);
+      log("allActionWordIndices:" + allActionWordIndices);
+
+      // Detect if there is  "you/and + actionword" 
+      if (allActionWordIndices != null) {
+        startAction = checkYouBeforeIndicesArr(actionTextInput, allActionWordIndices, 3) || checkAndBeforeIndicesArr(actionTextInput, allActionWordIndices, 2);
+        log("startAction: " + startAction);
+      }
+    }
+  }
+
+  if (startAction == true) {
+    // Intialize storage copies
+    plrStorage = {
+      types: [state.playerInv.item, state.playerTalents.name, state.playerSkills.name],
+      lvls: [null, state.playerTalents.lvl, state.playerSkills.lvl],
+      costs: [state.playerInv.amt, state.playerTalents.cost, state.playerSkills.cost]
+    };
+
+    plrThings = {
+      // 0 is item, 1 is talent, 2 is skill
+      types: [],
+      // index of thing in storage
+      indices: [],
+      // True for full match, false for partial match
+      fullMatchFlags: []
+    };
+
+    calls = {
+      types: [],
+      indices: [],
+      fullMatchFlags: []
+    };
+
+    actionFlavorText = "";
+
+    // For each input word
+    for (let i = 0; i < actionTextInput.length; i++) {
+      // Loop through each type of storage
+      for (let x = 0; x < plrStorage.types.length; x++) {
+        // Find all things in the storage that the word can call
+        plrStorage.types[x].forEach((thing, ind) => {
+          // Initialize flags
+          isFullMatch = true;
+          isPartialMatch = false;
+
+          // Split to parts for multi worded things (case insensitive)
+          thingParts = thing.toLowerCase().split(" ");
+
+          // Check if current thing in current storage is a PARTIAL match of current word (complete/prefix match)
+          if (
+            !stopWords.includes(thingParts[0]) &&
+            (
+              thingParts[0] == actionTextInput[i] ||
+              (actionTextInput[i].length >= 4 && thingParts[0].startsWith(actionTextInput[i].toLowerCase()))
+            )
+          ) {
+            isPartialMatch = true;
+          }
+          // Prevent matching things past input length. -1 to account for thingParts matching current index
+          if (i + thingParts.length - 1 > actionTextInput.length - 1) {
+            isFullMatch = false;
+          }
+          else {
+            // Check if current thing in current storage is a FULL match of current word 
+            for (j = 0; j < thingParts.length; j++) {
+              if (thingParts[j] !== actionTextInput[i + j].toLowerCase()) {
+                isFullMatch = false;
+                break;
+              }
+            }
+          }
+
+          // If current thing is a FULL match (override partial match), push its type, its storage index, and full match flag into a respective array
+          if (isFullMatch) {
+            plrThings.types.push(x);
+            plrThings.indices.push(ind);
+            plrThings.fullMatchFlags.push(true);
+
+            // Move input index forward by matched thing length to avoid duplicate matching. -1 to accomodate loop increment.
+            i = i + thingParts.length - 1;
+          }
+          // If current thing is a PARTIAL match, push its type, its storage index, and full match flag into a respective array
+          else if (isPartialMatch) {
+            plrThings.types.push(x);
+            plrThings.indices.push(ind);
+            plrThings.fullMatchFlags.push(false);
+          }
+
+        }); //end of for thing
+      } //end of for playerstorage
+
+      // After looping through all things and storages for the current word, push array of matched things into calls. A call is an array of matched things found for a word.
+      if (plrThings.types.length > 0) {
+        calls.types.push(plrThings.types);
+        calls.indices.push(plrThings.indices);
+        calls.fullMatchFlags.push(plrThings.fullMatchFlags);
+
+        // Reset arrays for the next word call
+        plrThings.types = [];
+        plrThings.indices = [];
+        plrThings.fullMatchFlags = [];
+      }
+
+    } //end of for input
+    for (i = 0; i < calls.types.length; i++) {
+      log('calls.types: ' + calls.types[i]);
+      log('calls.indices: ' + calls.indices[i]);
+      log('calls.fullMatchFlags: ' + calls.fullMatchFlags[i]);
+      log("----------------");
+    }
+
+    // Case A: If NO matches found, feed storages to AI context for AI to write rejection and send flavor text to output
+    if (calls.types.length === 0) {
+      // Get mp and ep penalty for action fail. Ensure deduction does not turn stat negative
+      penalty = 15;
+      if(state.playerStats.mp < penalty){
+        penalty = state.playerStats.mp;
+      }
+      statUp("mp", -1 * randomFloat(0.01, penalty));
+
+      if(state.playerStats.ep < penalty){
+        penalty = state.playerStats.ep;
+      }
+      statUp("ep", -1 * randomFloat(0.01, penalty));
+      
+      // Unlock Context Hook feed to influence AI to reject 
+      allItems = [];
+      allTalents = [];
+      allSkills = [];
+
+      // Get all storage things
+      state.playerInv.item.forEach((itm, index) => {
+        allItems.push(`${state.playerInv.amt[index]} ${state.playerInv.item[index]}`);
+      })
+      allItems = allItems.join(", ");
+
+      state.playerTalents.name.forEach((itm, index) => {
+        allTalents.push(`${state.playerTalents.name[index]}`);
+      })
+      allTalents = allTalents.join(", ");
+
+      state.playerSkills.name.forEach((itm, index) => {
+        allSkills.push(`${state.playerSkills.name[index]}`);
+      })
+      allSkills = allSkills.join(", ");
+      
+      state.strgCheckText = ` You realize you have nothing in your inventory but only ${allItems}. You realize you have no applicable talents but only ${allTalents}. You realize you have no applicable skills but only ${allSkills}. You anticipate failure for not having the right item, skill, or talent to use right now.`
+
+      state.unlockStrgToContext = true;
+      log("state.unlockStrgToContext: " + state.unlockStrgToContext);
+    }
+    // Case B: Things HAVE been matched
+    if (calls.types.length > 0) {
+      // For each word call (array of matched things)
+      calls.types.forEach((wordCall, i_currentCall) => {
+        final = {
+          fullTypes: [],
+          fullIndices: [],
+          partialTypes: [],
+          partialIndices: [],
+        };
+
+        notEnough = {
+          fullTypes: [],
+          fullIndices: [],
+          partialTypes: [],
+          partialIndices: [],
+        };
+
+        statPassFlags = [];
+
+        // For current word call, for each matched thing, perform and store a stat check
+        wordCall.forEach((typeOfTheThing, i_currentThing) => {
+          // is an ITEM
+          if (typeOfTheThing == 0) {
+            //todo: item use
+          }
+          // is a TALENT, store index of current thing in current call
+          if (typeOfTheThing == 1) {
+            talentIndex = calls.indices[i_currentCall][i_currentThing];
+
+            // Checks if player will have enough ep for the talent
+            if (state.playerStats.ep < state.playerTalents.cost[talentIndex]) {
+              statPassFlags.push(false);
+            }
+            else {
+              statPassFlags.push(true);
+            }
+          }
+          // is a SKILL 
+          if (typeOfTheThing == 2) {
+            skillIndex = calls.indices[i_currentCall][i_currentThing];
+
+            // Checks if player will have enough mp for the skill
+            if (state.playerStats.mp < state.playerSkills.cost[skillIndex]) {
+              statPassFlags.push(false);
+            }
+            else {
+              statPassFlags.push(true);
+            }
+          }
+        });
+        log('statPassFlags: ' + statPassFlags);
+
+        // For the current word call, for each thing, store things that pass stat req. as final matches
+        statPassFlags.forEach((thingPassesReq, i_currentMatch) => {
+          // If player HAS the stat requirement
+          if (thingPassesReq) {
+            // If FULL match, store as final matches
+            if (calls.fullMatchFlags[i_currentCall][i_currentMatch]) {
+              final.fullTypes.push(calls.types[i_currentCall][i_currentMatch]);
+              final.fullIndices.push(calls.indices[i_currentCall][i_currentMatch]);
+            }
+            // If PARTIAL match, store as final matches
+            if (!calls.fullMatchFlags[i_currentCall][i_currentMatch]) {
+              final.partialTypes.push(calls.types[i_currentCall][i_currentMatch]);
+              final.partialIndices.push(calls.indices[i_currentCall][i_currentMatch]);
+            }
+          }
+          // If player does NOT have the stat requirements
+          else{
+            // FULL matches that fail the stat req
+            if (calls.fullMatchFlags[i_currentCall][i_currentMatch]) {
+              notEnough.fullTypes.push(calls.types[i_currentCall][i_currentMatch]);
+              notEnough.fullIndices.push(calls.indices[i_currentCall][i_currentMatch]);
+            }
+            // PARTIAL matches that fail the stat req
+            if (!calls.fullMatchFlags[i_currentCall][i_currentMatch]) {
+              notEnough.partialTypes.push(calls.types[i_currentCall][i_currentMatch]);
+              notEnough.partialIndices.push(calls.indices[i_currentCall][i_currentMatch]);
+            }
+          }
+        });
+        log('final.fullTypes: ' + final.fullTypes);
+        log('final.fullIndices: ' + final.fullIndices);
+        log('final.partialTypes: ' + final.partialTypes);
+        log('final.partialIndices: ' + final.partialIndices);
+        log('notEnough.fullTypes: ' + notEnough.fullTypes);
+        log('notEnough.fullIndices: ' + notEnough.fullIndices);
+        log('notEnough.partialTypes: ' + notEnough.partialTypes);
+        log('notEnough.partialIndices: ' + notEnough.partialIndices);
+        log("----------------");
+
+        // Case 1: If player has final FULL thing, execute random one if more than one. Partials are overriden due to exact match found.
+        if (final.fullIndices.length > 0) {
+          // Get random thing
+          randomed = randomInt(0, final.fullIndices.length - 1)
+          index = final.fullIndices[randomed];
+          type = final.fullTypes[randomed];
+
+          // Final is a FULL TALENT
+          if (type == 1) {
+            actionFlavorText = actionFlavorText + executeTalent(true, index);
+            talentCastedToSkill(actionTextInput,index,allActionWordIndices);
+          }
+          // Final is a FULL SKILL
+          else if (type == 2) {
+            actionFlavorText = actionFlavorText + executeSkill(true, index);
+          }
+
+        }
+        // Case 2: If player has only final PARTIAL thing, execute random one if more than one.
+        else if (final.partialIndices.length > 0) {
+          // Get random thing
+          randomed = randomInt(0, final.partialIndices.length - 1);
+          index = final.partialIndices[randomed];
+          type = final.partialTypes[randomed];
+
+          // Final is a PARTIAL TALENT
+          if (type == 1) {
+            actionFlavorText = actionFlavorText + executeTalent(false, index);
+          }
+          // Final is PARTIAL SKILL
+          else if (type == 2) {
+            actionFlavorText = actionFlavorText + executeSkill(false, index);
+          }
+        }
+        // If player has matched things, whether partial or full, but NOTHING passes the stat req, this means player does not have enough stat to execute thing
+        if (final.fullIndices.length === 0 && final.partialIndices.length === 0) {
+          // Case 3: Not enough for a FULL thing, choose random if more than one and execute fail. Partials are overriden due to exact match found.
+          if (notEnough.fullIndices.length > 0) {
+            // Get random thing
+            randomed = randomInt(0, notEnough.fullIndices.length - 1)
+            index = notEnough.fullIndices[randomed];
+            type = notEnough.fullTypes[randomed];
+
+            // notEnough is a FULL TALENT
+            if (type == 1) {
+              actionFlavorText = actionFlavorText + ` ${realizePhrases[randomInt(0,realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0,notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "energy").replace("[thing]", state.playerTalents.name[index])}`
+            }
+            // notEnough is a FULL SKILL
+            else if (type == 2) {
+              actionFlavorText = actionFlavorText + ` ${realizePhrases[randomInt(0,realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0,notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "mana").replace("[thing]", state.playerSkills.name[index])}`
+            }
+          }
+          // Case 4: Not enough for a PARTIAL thing. Choose random if more than one and execute fail.
+          else if (notEnough.partialIndices.length > 0) {
+            // Get random thing
+            randomed = randomInt(0, notEnough.partialIndices.length - 1)
+            index = notEnough.partialIndices[randomed];
+            type = notEnough.partialTypes[randomed];
+
+            // notEnough is a PARTIAL TALENT
+            if (type == 1) {
+              actionFlavorText = actionFlavorText + ` ${realizePhrases[randomInt(0,realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0,notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "energy").replace("[thing]", state.playerTalents.name[index])}`
+            }
+            // notEnough is a PARTIAL SKILL
+            else if (type == 2) {
+              actionFlavorText = actionFlavorText + ` ${realizePhrases[randomInt(0,realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0,notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "mana").replace("[thing]", state.playerSkills.name[index])}`
+            }
+          }
+        }
+      });
+
+      text = text + actionFlavorText;
+    }//end of things matched
+  }//end of start action
+
+  return text;
+}
+//todo: modify rest values for hp mp ep, sleep no fix bleed
+/////////////////////////////////////////////////////////////////////////////////////
+
+// Check if player is first entering, then is entering into rest, and replenish their stats according to their rest intensity
 function detectResting(text){
   startRest = false;
   isEntering = false;
     
   // Verify player is not dialoguing (case-insensitive)
   dialogueCheck = true;
-  textLower = text.toLowerCase();
   dialoguePhrases.forEach(phrase => {
-    if(textLower.includes(phrase.toLowerCase())){
+    if(text.toLowerCase().includes(phrase.toLowerCase())){
       // Disable check dialoguing exists
       dialogueCheck = false;
     }
@@ -4077,7 +4768,7 @@ function detectResting(text){
   if(dialogueCheck == true){
     restingTextInput = []
     restingTextInput = findTargetsThenSplit(text,enterWords,restingTextInput,true);
-    console.log("restingTextInput simplified: " + restingTextInput);
+    log("restingTextInput simplified: " + restingTextInput);
 
     //If input has enter words get their indices
     if(restingTextInput != null){
@@ -4142,9 +4833,8 @@ function detectConsuming(text){
     
   // Verify player is not dialoguing (case-insensitive)
   dialogueCheck = true;
-  textLower = text.toLowerCase();
   dialoguePhrases.forEach(phrase => {
-    if(textLower.includes(phrase.toLowerCase())){
+    if(text.toLowerCase().includes(phrase.toLowerCase())){
       // Disable check dialoguing exists
       dialogueCheck = false;
     }
@@ -4154,7 +4844,7 @@ function detectConsuming(text){
   if(dialogueCheck == true){
     consumingTextInput = []
     consumingTextInput = findTargetsThenSplit(text,consumeWords,consumingTextInput,true);
-    console.log("consumingTextInput simplified: " + consumingTextInput);
+    log("consumingTextInput simplified: " + consumingTextInput);
 
     //If input has consume words get their indices
     if(consumingTextInput != null){
@@ -4228,9 +4918,8 @@ function detectAttack(text){
     
   // Verify player is not dialoguing (case-insensitive)
   dialogueCheck = true;
-  textLower = text.toLowerCase();
   dialoguePhrases.forEach(phrase => {
-    if(textLower.includes(phrase.toLowerCase())){
+    if(text.toLowerCase().includes(phrase.toLowerCase())){
       // Disable check dialoguing exists
       dialogueCheck = false;
     }
@@ -4240,7 +4929,7 @@ function detectAttack(text){
   if(dialogueCheck == true){
     attackTextInput = []
     attackTextInput = findTargetsThenSplit(text,attackWords,attackTextInput,true);
-    console.log("attackTextInput simplified: " + attackTextInput);
+    log("attackTextInput simplified: " + attackTextInput);
 
     //If input has atk words get their indices
     if(attackTextInput != null){
@@ -4306,10 +4995,9 @@ function detectAttack(text){
     }
     log("atkEnergyCheck: " + atkEnergyCheck);
 
-    // If player does not have enough energy to attack
+    // If player does not have enough energy to attack, create flavor text
     if(!atkEnergyCheck){
-      text = text + ` You are too exhausted to attack.`
-      //todo: expand text
+      text = text + ` ${realizePhrases[randomInt(0,realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0,notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "energy").replace("[thing]", "your attack")}`
     }
 
     // If player has enough energy to attack, execute the attack
@@ -4410,7 +5098,7 @@ function detectHurt(text){
     new RegExp(`\\byou(?:\\s+\\w+){0,3}\\s+feel(?:\\s+\\w+){0,5}\\s+(?:ache|aching|bruise|bruising|bruised|sting|stinging|throb|throbbing)\\b`, "i"),
 
     //Ex: You stumble back
-    new RegExp(`\\byou(?:\\s+\\w+){0,3}\\s+(?:fall|falling|falls|fell|stumble|stumbled|stumbles|stumbling|trip|tripping|trips|tumbled)(?:\\s+\\w+){0,3}\\s+(?:against|around|back|backward|down|forward|into|on|off|over|sideways|towards)\\b`, "i"),
+    new RegExp(`\\byou(?:\\s+\\w+){0,3}\\s+(?:fall|falling|falls|fell|stumble|stumbled|stumbles|stumbling|slam|slammed|slamming|slams|trip|tripping|trips|tumbled)(?:\\s+\\w+){0,3}\\s+(?:against|around|back|backward|down|forward|into|on|off|over|sideways|towards)\\b`, "i"),
 
     //Ex: The pain is throbbing
     new RegExp(`\\bThe(?:\\s+\\w+){0,3}\\s+pain(?:\\s+\\w+){0,4}\\s+(?:throbbing)\\b`, "i")
@@ -4482,47 +5170,46 @@ function detectHurt(text){
 
   return text;
 }
-
+// todo: enemy strength/type changes dmg lvl
 /////////////////////////////////////////////////////////////////////////////////////
 
 // Function to detect when the player attempts to dodge
-function detectDodge(text){
+function detectDodge(text) {
   startDodge = false;
-  
+
   // Verify player is not dialoguing (case-insensitive)
   dialogueCheck = true;
-  textLower = text.toLowerCase();
   dialoguePhrases.forEach(phrase => {
-    if(textLower.includes(phrase.toLowerCase())){
+    if (text.toLowerCase().includes(phrase.toLowerCase())) {
       // Disable check dialoguing exists
       dialogueCheck = false;
     }
   });
 
   // If the player is not in dialogue, check if the input contains any dodge-related words
-  if(dialogueCheck == true){
+  if (dialogueCheck == true) {
     dodgeTextInput = [];
-    
+
     // Find all the dodge-related words in the text and split the input accordingly
     dodgeTextInput = findTargetsThenSplit(text, dodgeWords, dodgeTextInput, true);
-    console.log("dodgeTextInput simplified: " + dodgeTextInput);
+    log("dodgeTextInput simplified: " + dodgeTextInput);
 
     // If the input contains dodge words, find their indices in the text
-    if(dodgeTextInput != null){
+    if (dodgeTextInput != null) {
       allDodgeWordIndices = [];
       allDodgeWordIndices = indicesOfTargets(dodgeTextInput, dodgeWords);
       log("allDodgeWordIndices:" + allDodgeWordIndices);
 
       // Check if the sentence contains "you + dodge" or "and + dodge" to trigger the dodge action
-      if(allDodgeWordIndices != null){
+      if (allDodgeWordIndices != null) {
         startDodge = checkYouBeforeIndicesArr(dodgeTextInput, allDodgeWordIndices, 3) || checkAndBeforeIndicesArr(dodgeTextInput, allDodgeWordIndices, 2);
-        log("startDodge: "+ startDodge)
+        log("startDodge: " + startDodge)
       }
     }
   }
 
   // If the dodge action is triggered (startDodge is true), calculate the player's dodge response based on SPD stat
-  if(startDodge){
+  if (startDodge) {
     plrSpd = state.playerStats.spd;
 
     // Define SPD stat ranges and corresponding dodge messages
@@ -4539,11 +5226,11 @@ function detectDodge(text){
       { min: 90, max: Infinity, spd: spdTier10 }
     ];
 
-    
+
     // Calculate energy requirements for dodging
-    dodgeEnergyLoss = (2 * (plrSpd/10) + randomInt(0,5)) * -1;
-    if(plrSpd > 100){
-      dodgeEnergyLoss = (20 + plrSpd/25) * -1;
+    dodgeEnergyLoss = (2 * (plrSpd / 10) + randomInt(0, 5)) * -1;
+    if (plrSpd > 100) {
+      dodgeEnergyLoss = (20 + plrSpd / 25) * -1;
     }
     log("dodgeEnergyLoss: " + dodgeEnergyLoss);
 
@@ -4555,14 +5242,13 @@ function detectDodge(text){
     }
     log("dodgeEnergyCheck: " + dodgeEnergyCheck);
 
-    // If player doesnt have enough energy to dodge
-    if(dodgeEnergyCheck == false){
-      text = text + `You realize you don't have enough energy to do so.`
-      //todo: diversify text
+    // If player doesnt have enough energy to dodge, create flavor text
+    if (dodgeEnergyCheck == false) {
+      text = text + ` ${realizePhrases[randomInt(0, realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0, notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "energy").replace("[thing]", "your movement")}`
     }
 
     // If player has enough energy to dodge, execute dodge
-    if(dodgeEnergyCheck){
+    if (dodgeEnergyCheck) {
       // Based on the player's SPD stat, select an appropriate dodge message and save dodge text
       for (let range of spdRanges) {
         if (plrSpd >= range.min && plrSpd < range.max) {
@@ -4575,13 +5261,13 @@ function detectDodge(text){
 
       text = text + spdText;
 
-      //Consume energy for dodging
-      statUp("ep",dodgeEnergyLoss);
+      // Consume energy for dodging
+      statUp("ep", dodgeEnergyLoss);
 
       // Dodging grants SPD stat
       statUp("spd", randomFloat(0.01, 1));
 
-      // Check if the player's luck allows for a successful dodge based on their LCK stat
+      // Check if the player's luck allows for a dodge boost based on their LCK stat
       dodgeLuckRoll = randomInt(1, 100);
       log("dodgeLuckRoll: " + dodgeLuckRoll);
 
@@ -4600,15 +5286,14 @@ function detectDodge(text){
   return text;
 }
 
-// Function that detects when a player looks around the environment and, based on their INTL stat, affects the level of detail in the results displayed to the player.
+// Function that detects when a player looks around the environment, and based on their INTL stat, affects the level of detail in the results displayed to the player.
 function detectScout(text){
   startScout = false;
   
   // Verify player is not dialoguing (case-insensitive)
   dialogueCheck = true;
-  textLower = text.toLowerCase();
   dialoguePhrases.forEach(phrase => {
-    if(textLower.includes(phrase.toLowerCase())){
+    if(text.toLowerCase().includes(phrase.toLowerCase())){
       // Disable check dialoguing exists
       dialogueCheck = false;
     }
@@ -4620,7 +5305,7 @@ function detectScout(text){
     
     // Find scout-related words within the input and split the input accordingly
     scoutTextInput = findTargetsThenSplit(text, scoutWords, scoutTextInput, true);
-    console.log("scoutTextInput simplified: " + scoutTextInput);
+    log("scoutTextInput simplified: " + scoutTextInput);
 
     // If the input contains scout words, find their indices in the text
     if(scoutTextInput != null){
@@ -4674,8 +5359,8 @@ function detectScout(text){
       // If the luck roll is successful, add a lucky phrase to the result
       text = text + ` ${graspPhrases[randomInt(0, graspPhrases.length - 1)]} ${luckyPhrases[randomInt(0, luckyPhrases.length - 1)]}.`;
 
-      //Grant the player luck exp for using luck
-      statUp("lck",randomFloat(0.01,1));
+      // Grant the player luck exp for using luck
+      statUp("lck", randomFloat(0.01,1));
     }
 
     storeStatsToSC();
@@ -4690,7 +5375,7 @@ function detectScout(text){
 //add random skill learning, make it context based
 //spiritualism increases luck
 //buff and debuff
-//inventory sys, buy and sell detection
-//detect boost luck
-//detect boost def
-//fix inv sys
+//add exp reward for killing
+//add reading
+//exercising to increase atk and spd and def
+//add armor, you put the helment "on your head"
