@@ -4602,7 +4602,10 @@ function detectStorageCallActions(text) {
         wordCall.forEach((typeOfTheThing, i_currentThing) => {
           // is an ITEM
           if (typeOfTheThing == 0) {
-            //todo: item use
+            itemIndex = calls.indices[i_currentCall][i_currentThing];
+
+            //todo: fix
+            statPassFlags.push(true);
           }
           // is a TALENT, store index of current thing in current call
           if (typeOfTheThing == 1) {
