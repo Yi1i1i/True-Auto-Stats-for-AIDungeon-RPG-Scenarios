@@ -4040,7 +4040,7 @@ function createIfNoSkillSC(){
     const skillSC = storyCards.find(sc => sc.title === "Player Skills")   
     skillSC.description = "Format for Modifying: SkillName (LVL) (MP), etc.";
 
-    //Mage, Healer, Swordsmen, Priest, Tank, Paladin, Hero, Custom
+    //Mage, Healer, Swordsman, Priest, Tank, Paladin, Hero, Custom
     //Classes and the skills they start with
     newClassSkills('mage',beginnerMageSpells);
     newClassSkills('sorcerer', beginnerMageSpells);
@@ -4477,7 +4477,7 @@ function detectStorageCallActions(text) {
 
           // Check if current thing in current storage is a PARTIAL match of current word (complete/prefix match)
           if (
-            !stopWords.includes(thingParts[0]) &&
+            !stopWords.includes(actionTextInput[i]) &&
             (
               thingParts[0] == actionTextInput[i] ||
               (actionTextInput[i].length >= 4 && thingParts[0].startsWith(actionTextInput[i].toLowerCase()))
