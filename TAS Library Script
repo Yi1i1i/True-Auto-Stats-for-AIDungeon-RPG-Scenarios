@@ -2070,6 +2070,7 @@ function helpCommandInput_TAS(text) {
     - ✨ Using skills grant ATK and INTL points.
     - 🛡️ Starting skills depend on your class.
     - ➰ Delete Skill story card to reroll starting skills.
+    - 🆕 New skill is rewarded for every 5 levels.
     >>
     `
 
