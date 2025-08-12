@@ -48,6 +48,12 @@ function onLibrary_TAS() {
   if (state.injectStatsToContext == undefined) {
     state.injectStatsToContext = true;
   }
+  if (state.lvlRewardSkillFlag == undefined) {
+    state.lvlRewardSkillFlag = {};
+  }
+  if (state.oldLvlHolder == undefined) {
+    state.oldLvlHolder = {};
+  }
 
   log("state.startScript: " + state.startScript);
 
@@ -92,13 +98,13 @@ function onInput_TAS(text) {
     retrieveSkillsFromSC();
 
 
+    text = detectStorageCallActions(text);
+
     text = detectStoreInv(text);
 
     text = detectGiving(text);
 
     text = detectAttack(text);
-
-    text = detectStorageCallActions(text);
 
     text = detectDodge(text);
 
@@ -119,6 +125,8 @@ function onInput_TAS(text) {
     text = talentLearningProcess(text);
 
     text = warnPlayerHealth(text);
+
+    text = rewardSkillForLevelUp(text);
 
   }//end of main
 
@@ -1946,6 +1954,24 @@ exerciseResultPhrases = [
 
 const pluralizableWords = ["cling", "climb", "clutch", "carry", "connect", "cut", "disrupt", "drive", "echo", "feel", "flow", "follow", "grasp", "hold", "handles", "harness", "hum", "knock", "latch", "land", "leave", "manage", "make", "move", "need", "open", "press", "pull", "push", "put", "reach", "recoil", "resonate", "ring", "rush", "settle", "shift", "struggle", "shimmer", "shudder", "slice", "speak", "seize", "split", "start", "stumble", "surge", "try", "take", "tremble", "vibrate", "walk", "weave", "wrap", "write"];
 
+const skillAcquisitionPhrases = [
+  "In a flash of clarity, you acquire the skill(s) [Skill] as you level up.",
+  "The pieces fall into place — you gain the skill(s) [Skill] as you level up.",
+  "A sudden realization strikes — the skill(s) [Skill] become yours as you level up.",
+  "Instinct takes over, and you grasp the skill(s) [Skill] as you level up.",
+  "Through focus and will, you acquire [Skill] as you level up.",
+  "The world slows, and [Skill] becomes second nature as you level up.",
+  "Connections form in your mind — you now know [Skill] as you level up.",
+  "A spark of understanding ignites — [Skill] is learned as you level up.",
+  "Without thinking, your mind moves, acquiring [Skill] as you level up.",
+  "The path ahead is clearer — [Skill] joins your arsenal as you level up.",
+  "In the quiet between heartbeats, [Skill] settles into you as you level up.",
+  "A subtle shift within tells you: [Skill] is yours as you level up.",
+  "Your mind sharpens, and [Skill] takes root as you level up.",
+  "The lesson clicks — you now wield [Skill] as you level up.",
+  "Thoughts and experiences have meshed together, [Skill] becomes yours as you level up."
+];
+
 
 /////////////////////////////////////////////////////////////////////////////////////
 /// TAS STANDARD FUNCTIONS
@@ -2103,6 +2129,9 @@ function helpCommandInput_TAS(text) {
     - +10 DEF → greater defense when blocking.
     - Defending grants DEF points.
 
+    - Exercise Format: "You [doWords] [num of reps] [exerciseWords]"
+    - Exercising consumes ~10 EP, grants ATK, DEF, SPD, and maxEP per rep.
+
     >>
     `
 
@@ -2126,6 +2155,7 @@ function helpCommandInput_TAS(text) {
     🔎 scoutWords:\n${scoutWords}
     🔎 defendWords:\n${defendWords}
     🔎 healingWords:\n${healingWords}
+    🔎 exerciseWords:\n${exerciseWords}
     >>
     `
 
@@ -4070,37 +4100,37 @@ function retrieveInvFromSC() {
 function detectStoreInv(text) {
   newText = "";
 
-  // Check which players are in the input and store their name and corresponding text
-  result = separateByPlr(text);
-  plrsDetected = Object.keys(result);
-  plrText = {};
-
-  // Store each player's text
-  plrsDetected.forEach(plr => {
-    if (result[plr].length > 0) {
-      plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
-    }
-    else {
-      plrText[plr] = result[plr].join(" ");
+  // Verify player is not dialoguing (case-insensitive)
+  dialogueFlag = true;
+  dialoguePhrases.forEach(phrase => {
+    if (text.toLowerCase().includes(phrase.toLowerCase())) {
+      // Disable check dialoguing exists
+      dialogueFlag = false;
     }
   });
 
-  plrsDetected.forEach(plr => {
-    // Initialize condition var
-    startEquip = false;
-    storeFlavorText = "";
+  if (dialogueFlag) {
+    // Check which players are in the input and store their name and corresponding text
+    result = separateByPlr(text);
+    plrsDetected = Object.keys(result);
+    plrText = {};
 
-    // Verify player is not dialoguing (case-insensitive)
-    dialogueCheck = true;
-    dialoguePhrases.forEach(phrase => {
-      if (text.toLowerCase().includes(phrase.toLowerCase())) {
-        // Disable check dialoguing exists
-        dialogueCheck = false;
+    plrsDetected.forEach(plr => {
+      if (result[plr].length > 0) {
+        plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
+      }
+      else {
+        plrText[plr] = result[plr].join(" ");
       }
     });
 
-    // If not a dialogue, check for inventory words in input then split text into words arr
-    if (dialogueCheck == true) {
+    // Loop through each player and test for action
+    plrsDetected.forEach(plr => {
+      // Initialize condition var
+      startEquip = false;
+      storeFlavorText = "";
+
+      // Check for inventory words in input then split text into words arr
       equipTextInput = [];
       processedText = wordsToNumber(plrText[plr]);
       equipTextInput = findTargetsThenSplit(processedText, invWords, true);
@@ -4122,251 +4152,251 @@ function detectStoreInv(text) {
           log("startEquip:" + startEquip);
         }
       }
-    }
 
-    // Start equip process when "you equip + inventory" is found in words arr
-    if (startEquip == true) {
-      // Initialize arrays for potential items from filtered input
-      potentialItem = {
-        tokens: [],
-        indices: [],
-        weights: []
-      };
+      // Start equip process when "you equip + inventory" is found in words arr
+      if (startEquip == true) {
+        // Initialize arrays for potential items from filtered input
+        potentialItem = {
+          tokens: [],
+          indices: [],
+          weights: []
+        };
 
-      // Filter out words that arent potential items
-      potentialItem.tokens = equipTextInput.filter(word =>
-        ![...stopWords, ...equipWords, ...talentWords, ...dodgeWords, ...castWords, ...learnWords, ...invWords, ...numWords, ...youWords, ...selfWords, ...consumeWords, ...titleWords].some(fromArr => (
-          fromArr.toLowerCase() === word.toLowerCase())
-          || (fromArr.toLowerCase() + "s" === word.toLowerCase())
-          || (fromArr.toLowerCase() + "es" === word.toLowerCase())
-        ));
-      potentialItem.tokens = potentialItem.tokens.filter(word => !/^\d+$/.test(word));
-      log("potentialItem.tokens: " + potentialItem.tokens);
+        // Filter out words that arent potential items
+        potentialItem.tokens = equipTextInput.filter(word =>
+          ![...stopWords, ...equipWords, ...talentWords, ...dodgeWords, ...castWords, ...learnWords, ...invWords, ...numWords, ...youWords, ...selfWords, ...consumeWords, ...titleWords].some(fromArr => (
+            fromArr.toLowerCase() === word.toLowerCase())
+            || (fromArr.toLowerCase() + "s" === word.toLowerCase())
+            || (fromArr.toLowerCase() + "es" === word.toLowerCase())
+          ));
+        potentialItem.tokens = potentialItem.tokens.filter(word => !/^\d+$/.test(word));
+        log("potentialItem.tokens: " + potentialItem.tokens);
 
-      if (potentialItem.tokens.length > 0) {
-        // Get potential item indices from unfiltered input text
-        potentialItem.indices = indicesOfTargets(equipTextInput, potentialItem.tokens);
+        if (potentialItem.tokens.length > 0) {
+          // Get potential item indices from unfiltered input text
+          potentialItem.indices = indicesOfTargets(equipTextInput, potentialItem.tokens);
 
-        // Remove duplicate indices
-        potentialItem.indices = [...new Set(potentialItem.indices)];
-        log("potentialItem.indices: " + potentialItem.indices);
+          // Remove duplicate indices
+          potentialItem.indices = [...new Set(potentialItem.indices)];
+          log("potentialItem.indices: " + potentialItem.indices);
 
-        // Initialize weight array to hold 0 for each potential item token
-        potentialItem.weights = [];
-        potentialItem.indices.forEach(word => { potentialItem.weights.push(0); });
-        //log("potentialItem.weights: " + potentialItem.weights);
+          // Initialize weight array to hold 0 for each potential item token
+          potentialItem.weights = [];
+          potentialItem.indices.forEach(word => { potentialItem.weights.push(0); });
+          //log("potentialItem.weights: " + potentialItem.weights);
 
-        // Get all indices of biased words in text, set to [] if null to avoid errors
-        allEquipWordIndices = allEquipWordIndices || [];
-        invWordIndices = indicesOfTargets(equipTextInput, invWords) || [];
-        numIndices = getDigitIndices(equipTextInput) || [];
-        fromIndices = indicesOf(equipTextInput, "from") || [];
-        theIndices = indicesOf(equipTextInput, "the") || [];
-        aIndices = indicesOf(equipTextInput, "a") || [];
-        anIndices = indicesOf(equipTextInput, "an") || [];
-        ofIndices = indicesOf(equipTextInput, "of") || [];
-        inIndices = indicesOf(equipTextInput, "in") || [];
-        intoIndices = indicesOf(equipTextInput, "into") || [];
-        andIndices = indicesOf(equipTextInput, "and") || [];
-        itIndices = indicesOf(equipTextInput, "it") || [];
-        itsIndices = indicesOf(equipTextInput, "its") || [];
-        themIndices = indicesOf(equipTextInput, "them") || [];
-        thatIndices = indicesOf(equipTextInput, "that") || [];
-        thenIndices = indicesOf(equipTextInput, "then") || [];
+          // Get all indices of biased words in text, set to [] if null to avoid errors
+          allEquipWordIndices = allEquipWordIndices || [];
+          invWordIndices = indicesOfTargets(equipTextInput, invWords) || [];
+          numIndices = getDigitIndices(equipTextInput) || [];
+          fromIndices = indicesOf(equipTextInput, "from") || [];
+          theIndices = indicesOf(equipTextInput, "the") || [];
+          aIndices = indicesOf(equipTextInput, "a") || [];
+          anIndices = indicesOf(equipTextInput, "an") || [];
+          ofIndices = indicesOf(equipTextInput, "of") || [];
+          inIndices = indicesOf(equipTextInput, "in") || [];
+          intoIndices = indicesOf(equipTextInput, "into") || [];
+          andIndices = indicesOf(equipTextInput, "and") || [];
+          itIndices = indicesOf(equipTextInput, "it") || [];
+          itsIndices = indicesOf(equipTextInput, "its") || [];
+          themIndices = indicesOf(equipTextInput, "them") || [];
+          thatIndices = indicesOf(equipTextInput, "that") || [];
+          thenIndices = indicesOf(equipTextInput, "then") || [];
 
-        // Weigh each token based on distance before or after biased words
-        // If token is near an "equip word"
-        if (allEquipWordIndices.length > 0) {
-          // Ex: You place sword
-          isAfterIndex(potentialItem.indices, allEquipWordIndices, 0, 3, 2.5, potentialItem.weights);
-          isAfterIndex(potentialItem.indices, allEquipWordIndices, 4, 5, 1.5, potentialItem.weights);
-          isAfterIndex(potentialItem.indices, allEquipWordIndices, 6, 10, 0.5, potentialItem.weights);
-        }
-
-        // If token is near an "inventory word"
-        if (invWordIndices.length > 0) {
-          // First 2 words before inv likely "in your" bag (Ex: ...sword in your bag)
-          isBeforeIndex(potentialItem.indices, invWordIndices, 0, 2, -2.5, potentialItem.weights);
-          isBeforeIndex(potentialItem.indices, invWordIndices, 2, 4, 2, potentialItem.weights);
-          isBeforeIndex(potentialItem.indices, invWordIndices, 5, 6, 1.5, potentialItem.weights);
-        }
-
-        // If token is near "number"
-        if (numIndices.length > 0) {
-          // Ex: take 1 sword
-          isAfterIndex(potentialItem.indices, numIndices, 0, 3, 2.5, potentialItem.weights);
-        }
-
-        // If token is near "the" 
-        if (theIndices.length > 0) {
-          // Ex: take the sword
-          isAfterIndex(potentialItem.indices, theIndices, 0, 4, 2.5, potentialItem.weights);
-        }
-
-        // If token is near "from"
-        if (fromIndices.length > 0) {
-          // Ex: take sword from
-          isBeforeIndex(potentialItem.indices, fromIndices, 0, 2, 1, potentialItem.weights);
-          isBeforeIndex(potentialItem.indices, fromIndices, 3, 4, 0.5, potentialItem.weights);
-
-          isAfterIndex(potentialItem.indices, fromIndices, 0, 3, -2, potentialItem.weights);
-
-        }
-        // If token is near "a/an"
-        if (aIndices.length > 0 || anIndices.length > 0) {
-          // Ex: take a sword
-          isAfterIndex(potentialItem.indices, aIndices, 0, 4, 1.5, potentialItem.weights);
-          isAfterIndex(potentialItem.indices, anIndices, 0, 4, 1.5, potentialItem.weights);
-        }
-
-        // If token is near "of" 
-        if (ofIndices.length > 0) {
-          // Ex: take 3 of the swords
-          isAfterIndex(potentialItem.indices, ofIndices, 0, 1, 0.5, potentialItem.weights);
-          isAfterIndex(potentialItem.indices, ofIndices, 2, 4, 1, potentialItem.weights);
-        }
-
-        // If token is near "in/into"  
-        if (inIndices.length > 0 || intoIndices.length > 0) {
-          // Ex: take sword and put in
-          isBeforeIndex(potentialItem.indices, inIndices, 0, 8, 1, potentialItem.weights);
-          isBeforeIndex(potentialItem.indices, intoIndices, 0, 8, 1, potentialItem.weights);
-
-          isAfterIndex(potentialItem.indices, inIndices, 0, 3, -2, potentialItem.weights);
-        }
-
-        // If token is near "and"
-        if (andIndices.length > 0) {
-          // Ex: sword, gun, and shield
-          isBeforeIndex(potentialItem.indices, andIndices, 0, 3, 1, potentialItem.weights);
-          isBeforeIndex(potentialItem.indices, andIndices, 4, 6, 0.5, potentialItem.weights);
-
-          isAfterIndex(potentialItem.indices, andIndices, 0, 3, 1.5, potentialItem.weights);
-
-        }
-
-        // If token is near "it/its"
-        if (itIndices.length > 0 || itsIndices.length > 0) {
-          //Ex: "apple and put it"
-          isBeforeIndex(potentialItem.indices, itIndices, 0, 3, -1, potentialItem.weights);
-          isBeforeIndex(potentialItem.indices, itsIndices, 4, 8, 1.5, potentialItem.weights);
-
-          isAfterIndex(potentialItem.indices, itsIndices, 0, 3, -2, potentialItem.weights);
-        }
-
-        // If token is near "them"
-        if (themIndices.length > 0) {
-          // Ex: "and put them"
-          isBeforeIndex(potentialItem.indices, themIndices, 0, 3, -1.5, potentialItem.weights);
-          isBeforeIndex(potentialItem.indices, themIndices, 4, 8, 1.5, potentialItem.weights);
-
-          isAfterIndex(potentialItem.indices, themIndices, 0, 2, -2, potentialItem.weights);
-        }
-
-        // If token is near "that"
-        if (thatIndices.length > 0) {
-          // Ex: take that apple
-          isAfterIndex(potentialItem.indices, thatIndices, 0, 3, 1.5, potentialItem.weights);
-        }
-
-        // If token is near "then"
-        if (thenIndices.length > 0) {
-          // Ex: take the sword then the apple
-          isAfterIndex(potentialItem.indices, thenIndices, 0, 3, 1.5, potentialItem.weights);
-
-          isBeforeIndex(potentialItem.indices, thenIndices, 0, 3, 1.5, potentialItem.weights);
-        }
-        log("potentialItem.weights: " + potentialItem.weights);
-
-        // Initialize holder for item tokens
-        itemNameParts = [];
-
-        // Find last index that passes weight threshold to know when last item tokens will be stored
-        for (let i = potentialItem.weights.length - 1; i >= 0; i--) {
-          if (potentialItem.weights[i] >= 4) {
-            lastWeightIndex = i;
-            break;
+          // Weigh each token based on distance before or after biased words
+          // If token is near an "equip word"
+          if (allEquipWordIndices.length > 0) {
+            // Ex: You place sword
+            isAfterIndex(potentialItem.indices, allEquipWordIndices, 0, 3, 2.5, potentialItem.weights);
+            isAfterIndex(potentialItem.indices, allEquipWordIndices, 4, 5, 1.5, potentialItem.weights);
+            isAfterIndex(potentialItem.indices, allEquipWordIndices, 6, 10, 0.5, potentialItem.weights);
           }
-        }
 
-        // Push potential items into holder if they pass weight threshold
-        potentialItem.weights.forEach((weight, index) => {
-          if (weight >= 4) {
-            itemNameParts.push(potentialItem.tokens[index]);
-            log("itemNameParts: " + itemNameParts);
+          // If token is near an "inventory word"
+          if (invWordIndices.length > 0) {
+            // First 2 words before inv likely "in your" bag (Ex: ...sword in your bag)
+            isBeforeIndex(potentialItem.indices, invWordIndices, 0, 2, -2.5, potentialItem.weights);
+            isBeforeIndex(potentialItem.indices, invWordIndices, 2, 4, 2, potentialItem.weights);
+            isBeforeIndex(potentialItem.indices, invWordIndices, 5, 6, 1.5, potentialItem.weights);
+          }
 
-            // Slice text chunk at potential item index for end of item testing
-            textChunk = processedText.replace(/(?<!>)>(?!>)/g, "")
-              .trim()
-              .split(" ")
-              .slice(potentialItem.indices[index], potentialItem.indices[index] + 2)
-              .join(" ");
-            log("textChunk: " + textChunk);
+          // If token is near "number"
+          if (numIndices.length > 0) {
+            // Ex: take 1 sword
+            isAfterIndex(potentialItem.indices, numIndices, 0, 3, 2.5, potentialItem.weights);
+          }
 
-            // Test for end of item name to join and store item from holder
-            pattern = new RegExp(`\\b${potentialItem.tokens[index]}\\b\\s*(,|and|\\.)`, 'i');
-            itemEnd = textChunk.search(pattern);
-            log("itemEnd: " + itemEnd);
+          // If token is near "the" 
+          if (theIndices.length > 0) {
+            // Ex: take the sword
+            isAfterIndex(potentialItem.indices, theIndices, 0, 4, 2.5, potentialItem.weights);
+          }
 
-            if (itemEnd !== -1 || index == lastWeightIndex) {
-              // Combine item name parts into final item name
-              finalItemName = itemNameParts.join(" ");
-              log("finalItemName: " + finalItemName);
+          // If token is near "from"
+          if (fromIndices.length > 0) {
+            // Ex: take sword from
+            isBeforeIndex(potentialItem.indices, fromIndices, 0, 2, 1, potentialItem.weights);
+            isBeforeIndex(potentialItem.indices, fromIndices, 3, 4, 0.5, potentialItem.weights);
 
-              // Clear the array after item is stored for next possible item
-              itemNameParts = [];
+            isAfterIndex(potentialItem.indices, fromIndices, 0, 3, -2, potentialItem.weights);
 
-              // Get item amt
-              itemAmt = findClosestNumberBefore(equipTextInput, potentialItem.indices[index]);
+          }
+          // If token is near "a/an"
+          if (aIndices.length > 0 || anIndices.length > 0) {
+            // Ex: take a sword
+            isAfterIndex(potentialItem.indices, aIndices, 0, 4, 1.5, potentialItem.weights);
+            isAfterIndex(potentialItem.indices, anIndices, 0, 4, 1.5, potentialItem.weights);
+          }
 
-              if (!itemAmt) {
-                itemAmt = 1;
-              }
+          // If token is near "of" 
+          if (ofIndices.length > 0) {
+            // Ex: take 3 of the swords
+            isAfterIndex(potentialItem.indices, ofIndices, 0, 1, 0.5, potentialItem.weights);
+            isAfterIndex(potentialItem.indices, ofIndices, 2, 4, 1, potentialItem.weights);
+          }
 
-              // Get index if already existing item in player inv 
-              alreadyItemIndex = [];
-              alreadyItemIndex = indicesOf(state.players[plr].inv.item, finalItemName);
+          // If token is near "in/into"  
+          if (inIndices.length > 0 || intoIndices.length > 0) {
+            // Ex: take sword and put in
+            isBeforeIndex(potentialItem.indices, inIndices, 0, 8, 1, potentialItem.weights);
+            isBeforeIndex(potentialItem.indices, intoIndices, 0, 8, 1, potentialItem.weights);
 
-              // Increment item amt if already existing in inv
-              if (alreadyItemIndex) {
-                state.players[plr].inv.amt[alreadyItemIndex] += itemAmt;
+            isAfterIndex(potentialItem.indices, inIndices, 0, 3, -2, potentialItem.weights);
+          }
 
-                // Log to messages
-                state.msgHolder = state.msgHolder + `${plr} 🎒 +${itemAmt} ${state.players[plr].inv.item[alreadyItemIndex]}\n`;
+          // If token is near "and"
+          if (andIndices.length > 0) {
+            // Ex: sword, gun, and shield
+            isBeforeIndex(potentialItem.indices, andIndices, 0, 3, 1, potentialItem.weights);
+            isBeforeIndex(potentialItem.indices, andIndices, 4, 6, 0.5, potentialItem.weights);
 
+            isAfterIndex(potentialItem.indices, andIndices, 0, 3, 1.5, potentialItem.weights);
 
-                // Fetch the `${plr} Inventory` card and log
-                const invSC = storyCards.find(sc => sc.title === `${plr} Inventory`);
-                invSC.description = `Log ${state.turnCount} | +${itemAmt} ${state.players[plr].inv.item[alreadyItemIndex]}\n` + invSC.description;
-              }
-              else {
-                // Else new item is stored
-                state.players[plr].inv.item.push(finalItemName);
-                state.players[plr].inv.amt.push(itemAmt);
+          }
 
-                // Log to msg
-                state.msgHolder = state.msgHolder + `${plr} 🎒 +${itemAmt} ${finalItemName}\n`;
+          // If token is near "it/its"
+          if (itIndices.length > 0 || itsIndices.length > 0) {
+            //Ex: "apple and put it"
+            isBeforeIndex(potentialItem.indices, itIndices, 0, 3, -1, potentialItem.weights);
+            isBeforeIndex(potentialItem.indices, itsIndices, 4, 8, 1.5, potentialItem.weights);
 
-                // Fetch the `${plr} Inventory` card and log
+            isAfterIndex(potentialItem.indices, itsIndices, 0, 3, -2, potentialItem.weights);
+          }
 
-                const invSC = storyCards.find(sc => sc.title === `${plr} Inventory`);
-                invSC.description = `Log ${state.turnCount} | +${itemAmt} ${finalItemName}\n` + invSC.description;
-              }
+          // If token is near "them"
+          if (themIndices.length > 0) {
+            // Ex: "and put them"
+            isBeforeIndex(potentialItem.indices, themIndices, 0, 3, -1.5, potentialItem.weights);
+            isBeforeIndex(potentialItem.indices, themIndices, 4, 8, 1.5, potentialItem.weights);
+
+            isAfterIndex(potentialItem.indices, themIndices, 0, 2, -2, potentialItem.weights);
+          }
+
+          // If token is near "that"
+          if (thatIndices.length > 0) {
+            // Ex: take that apple
+            isAfterIndex(potentialItem.indices, thatIndices, 0, 3, 1.5, potentialItem.weights);
+          }
+
+          // If token is near "then"
+          if (thenIndices.length > 0) {
+            // Ex: take the sword then the apple
+            isAfterIndex(potentialItem.indices, thenIndices, 0, 3, 1.5, potentialItem.weights);
+
+            isBeforeIndex(potentialItem.indices, thenIndices, 0, 3, 1.5, potentialItem.weights);
+          }
+          log("potentialItem.weights: " + potentialItem.weights);
+
+          // Initialize holder for item tokens
+          itemNameParts = [];
+
+          // Find last index that passes weight threshold to know when last item tokens will be stored
+          for (let i = potentialItem.weights.length - 1; i >= 0; i--) {
+            if (potentialItem.weights[i] >= 4) {
+              lastWeightIndex = i;
+              break;
             }
           }
-        });
 
-        //Update SC
-        storeInvToSC();
+          // Push potential items into holder if they pass weight threshold
+          potentialItem.weights.forEach((weight, index) => {
+            if (weight >= 4) {
+              itemNameParts.push(potentialItem.tokens[index]);
+              log("itemNameParts: " + itemNameParts);
 
-        storeFlavorText = storeFlavorText + toCoOpLang(plr, ` ${itemGainPhrases[randomInt(0, itemGainPhrases.length - 1)]} `);
+              // Slice text chunk at potential item index for end of item testing
+              textChunk = processedText.replace(/(?<!>)>(?!>)/g, "")
+                .trim()
+                .split(" ")
+                .slice(potentialItem.indices[index], potentialItem.indices[index] + 2)
+                .join(" ");
+              log("textChunk: " + textChunk);
 
-      }//end of potentialItem.tokens.length
+              // Test for end of item name to join and store item from holder
+              pattern = new RegExp(`\\b${potentialItem.tokens[index]}\\b\\s*(,|and|\\.)`, 'i');
+              itemEnd = textChunk.search(pattern);
+              log("itemEnd: " + itemEnd);
 
-    }//end of startEquip
+              if (itemEnd !== -1 || index == lastWeightIndex) {
+                // Combine item name parts into final item name
+                finalItemName = itemNameParts.join(" ");
+                log("finalItemName: " + finalItemName);
 
-    newText = newText + plrText[plr] + storeFlavorText;
-  });
+                // Clear the array after item is stored for next possible item
+                itemNameParts = [];
+
+                // Get item amt
+                itemAmt = findClosestNumberBefore(equipTextInput, potentialItem.indices[index]);
+
+                if (!itemAmt) {
+                  itemAmt = 1;
+                }
+
+                // Get index if already existing item in player inv 
+                alreadyItemIndex = [];
+                alreadyItemIndex = indicesOf(state.players[plr].inv.item, finalItemName);
+
+                // Increment item amt if already existing in inv
+                if (alreadyItemIndex) {
+                  state.players[plr].inv.amt[alreadyItemIndex] += itemAmt;
+
+                  // Log to messages
+                  state.msgHolder = state.msgHolder + `${plr} 🎒 +${itemAmt} ${state.players[plr].inv.item[alreadyItemIndex]}\n`;
+
+
+                  // Fetch the `${plr} Inventory` card and log
+                  const invSC = storyCards.find(sc => sc.title === `${plr} Inventory`);
+                  invSC.description = `Log ${state.turnCount} | +${itemAmt} ${state.players[plr].inv.item[alreadyItemIndex]}\n` + invSC.description;
+                }
+                else {
+                  // Else new item is stored
+                  state.players[plr].inv.item.push(finalItemName);
+                  state.players[plr].inv.amt.push(itemAmt);
+
+                  // Log to msg
+                  state.msgHolder = state.msgHolder + `${plr} 🎒 +${itemAmt} ${finalItemName}\n`;
+
+                  // Fetch the `${plr} Inventory` card and log
+
+                  const invSC = storyCards.find(sc => sc.title === `${plr} Inventory`);
+                  invSC.description = `Log ${state.turnCount} | +${itemAmt} ${finalItemName}\n` + invSC.description;
+                }
+              }
+            }
+          });
+
+          //Update SC
+          storeInvToSC();
+
+          storeFlavorText = storeFlavorText + toCoOpLang(plr, ` ${itemGainPhrases[randomInt(0, itemGainPhrases.length - 1)]} `);
+
+        }//end of potentialItem.tokens.length
+
+      }//end of startEquip
+
+      newText = newText + plrText[plr] + storeFlavorText;
+    });
+  }
 
   if (newText == "") {
     return text;
@@ -4380,37 +4410,38 @@ function detectStoreInv(text) {
 function detectGiving(text) {
   newText = "";
 
-  // Check which players are in the input and store their name and corresponding text
-  result = separateByPlr(text);
-  plrsDetected = Object.keys(result);
-  plrText = {};
-
-  // Store each player's text
-  plrsDetected.forEach(plr => {
-    if (result[plr].length > 0) {
-      plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
-    }
-    else {
-      plrText[plr] = result[plr].join(" ");
+  // Verify player is not dialoguing (case-insensitive)
+  dialogueFlag = true;
+  dialoguePhrases.forEach(phrase => {
+    if (text.toLowerCase().includes(phrase.toLowerCase())) {
+      // Disable check dialoguing exists
+      dialogueFlag = false;
     }
   });
 
-  plrsDetected.forEach(plr => {
-    // Initialize condition
-    startGiving = false;
-    finalFlavorText = "";
+  if (dialogueFlag) {
+    // Check which players are in the input and store their name and corresponding text
+    result = separateByPlr(text);
+    plrsDetected = Object.keys(result);
+    plrText = {};
 
-    // Verify player is not dialoguing (case-insensitive)
-    dialogueCheck = true;
-    dialoguePhrases.forEach(phrase => {
-      if (text.toLowerCase().includes(phrase.toLowerCase())) {
-        // Disable check dialoguing exists
-        dialogueCheck = false;
+    // Store each player's text
+    plrsDetected.forEach(plr => {
+      if (result[plr].length > 0) {
+        plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
+      }
+      else {
+        plrText[plr] = result[plr].join(" ");
       }
     });
 
-    // Check for give words in the text and split the input
-    if (dialogueCheck == true) {
+    // Loop through each player and test for action
+    plrsDetected.forEach(plr => {
+      // Initialize condition
+      startGiving = false;
+      finalFlavorText = "";
+
+      // Check for give words in the text and split the input
       givingTextInput = [];
       processedText = wordsToNumber(plrText[plr]);
       givingTextInput = findTargetsThenSplit(processedText, giveWords, true);
@@ -4428,121 +4459,122 @@ function detectGiving(text) {
           log("startGiving: " + startGiving);
         }
       }
-    }
 
-    // Input meets requirements, execute giving
-    if (startGiving) {
-      itmInputIndices = [];
-      itmInputAmts = [];
-      itmInvIndices = [];
 
-      // Loop through each plr item to check if item is called in input
-      state.players[plr].inv.item.forEach((itm, index) => {
-        // Split itm parts for multi worded itms
-        itmParts = itm.toLowerCase().split(" ");
+      // Input meets requirements, execute giving
+      if (startGiving) {
+        itmInputIndices = [];
+        itmInputAmts = [];
+        itmInvIndices = [];
 
-        // Loop through each word in input and check for full item match
-        for (let i = 0; i <= givingTextInput.length - itmParts.length; i++) {
-          match = true;
+        // Loop through each plr item to check if item is called in input
+        state.players[plr].inv.item.forEach((itm, index) => {
+          // Split itm parts for multi worded itms
+          itmParts = itm.toLowerCase().split(" ");
 
-          // Checking for full item match (case and plural insensitive)
-          for (let j = 0; j < itmParts.length; j++) {
-            if (itmParts[j] !== givingTextInput[i + j].toLowerCase()
-              && itmParts[j] + 's' !== givingTextInput[i + j].toLowerCase()
-              && itmParts[j] !== givingTextInput[i + j].toLowerCase() + 's') {
-              match = false;
-              break;
+          // Loop through each word in input and check for full item match
+          for (let i = 0; i <= givingTextInput.length - itmParts.length; i++) {
+            match = true;
+
+            // Checking for full item match (case and plural insensitive)
+            for (let j = 0; j < itmParts.length; j++) {
+              if (itmParts[j] !== givingTextInput[i + j].toLowerCase()
+                && itmParts[j] + 's' !== givingTextInput[i + j].toLowerCase()
+                && itmParts[j] !== givingTextInput[i + j].toLowerCase() + 's') {
+                match = false;
+                break;
+              }
+            }
+            //todo: add partial matching
+
+            // Item is matched
+            if (match) {
+              // Store first part index from input in array
+              itmInputIndices.push(i);
+
+              // Get item amt from input and store in array
+              itmAmt = findClosestNumberBefore(givingTextInput, i) ?? 1;
+              itmInputAmts.push(itmAmt);
+
+              // Save item index from inv in array
+              itmInvIndices.push(index);
             }
           }
-          //todo: add partial matching
 
-          // Item is matched
-          if (match) {
-            // Store first part index from input in array
-            itmInputIndices.push(i);
+        });
+        log("itmInputIndices: " + itmInputIndices);
+        log("itmInputAmts: " + itmInputAmts);
+        log("itmInvIndices: " + itmInvIndices);
 
-            // Get item amt from input and store in array
-            itmAmt = findClosestNumberBefore(givingTextInput, i) ?? 1;
-            itmInputAmts.push(itmAmt);
+        giveFlavorText = [];
+        failFlavorText = [];
+        zeroAmtArr = [];
 
-            // Save item index from inv in array
-            itmInvIndices.push(index);
-          }
+        // Player has called item
+        if (itmInputIndices.length > 0) {
+          // Loop through each itm called 
+          itmInputIndices.forEach((itm, index) => {
+            // Player has enough item amount in inv
+            if (state.players[plr].inv.amt[itmInvIndices[index]] >= itmInputAmts[index]) {
+              // Subtract item amt from inventory
+              state.players[plr].inv.amt[itmInvIndices[index]] = state.players[plr].inv.amt[itmInvIndices[index]] - itmInputAmts[index];
+
+              // Fetch SC and log
+              const invSC = storyCards.find(sc => sc.title === `${plr} Inventory`);
+              invSC.description = `Log ${state.turnCount} | -${itmInputAmts[index]} ${state.players[plr].inv.item[itmInvIndices[index]]}\n` + invSC.description;
+
+              // Log to messages
+              state.msgHolder = state.msgHolder + `${plr} 🫴 -${itmInputAmts[index]} ${state.players[plr].inv.item[itmInvIndices[index]]}\n`
+
+              // Store item to flavor text array
+              giveFlavorText.push(state.players[plr].inv.item[itmInvIndices[index]]);
+
+              storeInvToSC();
+
+            }
+            // Player doesnt have enough item amount in inv
+            else {
+              failFlavorText.push(state.players[plr].inv.item[itmInvIndices[index]]);
+            }
+          });
+        }
+        log("giveFlavorText: " + giveFlavorText);
+        log("failFlavorText: " + failFlavorText);
+
+        // Execute giving flavor text
+        if (giveFlavorText.length > 0) {
+          finalFlavorText = finalFlavorText + ` ${toCoOpLang(plr, `The ${giveFlavorText.join(", ")} leaves your inventory.`)} `;
+        }
+        if (failFlavorText.length > 0) {
+          finalFlavorText = finalFlavorText + ` ${toCoOpLang(plr, ` You realize you don't have enough ${failFlavorText.join(", ")}.`)} `;
         }
 
-      });
-      log("itmInputIndices: " + itmInputIndices);
-      log("itmInputAmts: " + itmInputAmts);
-      log("itmInvIndices: " + itmInvIndices);
+        // Unlock Context Hook feed to influence AI to reject lack of items or wrong items to give
+        allItems = [];
+        state.players[plr].inv.item.forEach((itm, index) => {
+          allItems.push(`${state.players[plr].inv.amt[index]} ${state.players[plr].inv.item[index]}`);
+        })
+        if (allItems.length == 0) {
+          allItems.push("nothing");
+        }
+        allItems = allItems.join(", ");
 
-      giveFlavorText = [];
-      failFlavorText = [];
-      zeroAmtArr = [];
-
-      // Player has called item
-      if (itmInputIndices.length > 0) {
-        // Loop through each itm called 
-        itmInputIndices.forEach((itm, index) => {
-          // Player has enough item amount in inv
-          if (state.players[plr].inv.amt[itmInvIndices[index]] >= itmInputAmts[index]) {
-            // Subtract item amt from inventory
-            state.players[plr].inv.amt[itmInvIndices[index]] = state.players[plr].inv.amt[itmInvIndices[index]] - itmInputAmts[index];
-
-            // Fetch SC and log
-            const invSC = storyCards.find(sc => sc.title === `${plr} Inventory`);
-            invSC.description = `Log ${state.turnCount} | -${itmInputAmts[index]} ${state.players[plr].inv.item[itmInvIndices[index]]}\n` + invSC.description;
-
-            // Log to messages
-            state.msgHolder = state.msgHolder + `${plr} 🫴 -${itmInputAmts[index]} ${state.players[plr].inv.item[itmInvIndices[index]]}\n`
-
-            // Store item to flavor text array
-            giveFlavorText.push(state.players[plr].inv.item[itmInvIndices[index]]);
-
-            storeInvToSC();
-
-          }
-          // Player doesnt have enough item amount in inv
-          else {
-            failFlavorText.push(state.players[plr].inv.item[itmInvIndices[index]]);
-          }
-        });
-      }
-      log("giveFlavorText: " + giveFlavorText);
-      log("failFlavorText: " + failFlavorText);
-
-      // Execute giving flavor text
-      if (giveFlavorText.length > 0) {
-        finalFlavorText = finalFlavorText + ` ${toCoOpLang(plr, `The ${giveFlavorText.join(", ")} leaves your inventory.`)} `;
-      }
-      if (failFlavorText.length > 0) {
-        finalFlavorText = finalFlavorText + ` ${toCoOpLang(plr, ` You realize you don't have enough ${failFlavorText.join(", ")}.`)} `;
-      }
-
-      // Unlock Context Hook feed to influence AI to reject lack of items or wrong items to give
-      allItems = [];
-      state.players[plr].inv.item.forEach((itm, index) => {
-        allItems.push(`${state.players[plr].inv.amt[index]} ${state.players[plr].inv.item[index]}`);
-      })
-      if (allItems.length == 0) {
-        allItems.push("nothing");
-      }
-      allItems = allItems.join(", ");
-
-      if (onePlayerFlagger()) {
-        state.invCheckText = ` You realize you have nothing in your inventory but only ${allItems}. You anticipate failure for not having the right items or amount.`
-      }
-      else {
-        state.invCheckText = state.invCheckText + ` ${plr} realizes they have nothing in their inventory but only ${allItems}. ${plr} anticipates failure for not having the right items or amount. `;
-      }
+        if (onePlayerFlagger()) {
+          state.invCheckText = ` You realize you have nothing in your inventory but only ${allItems}. You anticipate failure for not having the right items or amount.`
+        }
+        else {
+          state.invCheckText = state.invCheckText + ` ${plr} realizes they have nothing in their inventory but only ${allItems}. ${plr} anticipates failure for not having the right items or amount. `;
+        }
 
 
-      state.unlockInvToContext = true;
-      log("state.unlockInvToContext: " + state.unlockInvToContext);
+        state.unlockInvToContext = true;
+        log("state.unlockInvToContext: " + state.unlockInvToContext);
 
-    }//end of startgiving
+      }//end of startgiving
 
-    newText = newText + plrText[plr] + finalFlavorText;
-  });
+      newText = newText + plrText[plr] + finalFlavorText;
+    });
+  }
 
   if (newText == "") {
     return text;
@@ -4653,36 +4685,36 @@ function retrieveTalentsFromSC() {
 function talentLearningProcess(text) {
   newText = "";
 
-  // Check which players are in the input and store their name and corresponding text
-  result = separateByPlr(text);
-  plrsDetected = Object.keys(result);
-  plrText = {};
-
-  // Store each player's text
-  plrsDetected.forEach(plr => {
-    if (result[plr].length > 0) {
-      plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
-    }
-    else {
-      plrText[plr] = result[plr].join(" ");
+  // Verify player is not dialoguing (case-insensitive)
+  dialogueFlag = true;
+  dialoguePhrases.forEach(phrase => {
+    if (text.toLowerCase().includes(phrase.toLowerCase())) {
+      // Disable check dialoguing exists
+      dialogueFlag = false;
     }
   });
 
-  plrsDetected.forEach(plr => {
-    startLearning = false;
-    learningFlavorText = "";
+  if (dialogueFlag == true) {
+    // Check which players are in the input and store their name and corresponding text
+    result = separateByPlr(text);
+    plrsDetected = Object.keys(result);
+    plrText = {};
 
-    // Verify player is not dialoguing (case-insensitive)
-    dialogueCheck = true;
-    dialoguePhrases.forEach(phrase => {
-      if (text.toLowerCase().includes(phrase.toLowerCase())) {
-        // Disable check dialoguing exists
-        dialogueCheck = false;
+    // Store each player's text
+    plrsDetected.forEach(plr => {
+      if (result[plr].length > 0) {
+        plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
+      }
+      else {
+        plrText[plr] = result[plr].join(" ");
       }
     });
 
-    // If no dialogue, check input for learn words then split
-    if (dialogueCheck == true) {
+    plrsDetected.forEach(plr => {
+      startLearning = false;
+      learningFlavorText = "";
+
+      // Check input for learn words then split
       learnTextInput = [];
       learnTextInput = findTargetsThenSplit(plrText[plr], learnWords, true);
       log("learnTextInput: " + learnTextInput);
@@ -4701,146 +4733,146 @@ function talentLearningProcess(text) {
           log("startLearning: " + startLearning);
         }
       }
-    }
 
-    // If you + learnword exist, unlock talent learning process
-    if (startLearning) {
-      // Must filter out likely nontalent words from learnTextInput
-      filterArr = [...stopWords, ...learnWords, ...titleWords, ...youWords, ...selfWords, ...[plr, plr.toLowerCase()]];
+      // If you + learnword exist, unlock talent learning process
+      if (startLearning) {
+        // Must filter out likely nontalent words from learnTextInput
+        filterArr = [...stopWords, ...learnWords, ...titleWords, ...youWords, ...selfWords, ...[plr, plr.toLowerCase()]];
 
-      learnTextInput = [];
-      learnTextInput = findTargetsThenSplit(plrText[plr], filterArr, true);
+        learnTextInput = [];
+        learnTextInput = findTargetsThenSplit(plrText[plr], filterArr, true);
 
-      learnTextInput = learnTextInput.filter(word => !filterArr.some(fromArr => (
-        word.toLowerCase() === fromArr.toLowerCase())
-        || (word.toLowerCase() === fromArr.toLowerCase() + "s")
-        || (word.toLowerCase() === fromArr.toLowerCase() + "es")
-      ));
+        learnTextInput = learnTextInput.filter(word => !filterArr.some(fromArr => (
+          word.toLowerCase() === fromArr.toLowerCase())
+          || (word.toLowerCase() === fromArr.toLowerCase() + "s")
+          || (word.toLowerCase() === fromArr.toLowerCase() + "es")
+        ));
 
-      // Now you have an array of strings that could be talent names player is trying to learn
-      likelyTalentNames = [];
-      likelyTalentNames = learnTextInput;
+        // Now you have an array of strings that could be talent names player is trying to learn
+        likelyTalentNames = [];
+        likelyTalentNames = learnTextInput;
 
-      // If likelytalent names exist and isnt filtered to empty
-      if (likelyTalentNames.length > 0) {
-        // Remove duplicates so player cant spam learn talents in one input
-        likelyTalentNames = [...new Set(likelyTalentNames)]
-        log("likelyTalentNames: " + likelyTalentNames);
+        // If likelytalent names exist and isnt filtered to empty
+        if (likelyTalentNames.length > 0) {
+          // Remove duplicates so player cant spam learn talents in one input
+          likelyTalentNames = [...new Set(likelyTalentNames)]
+          log("likelyTalentNames: " + likelyTalentNames);
 
-        // Table of values influencing amt of turns to learn talent/likelihood of filtered input being a talent
-        state.points = {
-          capitalization: 1.5,
-          newTalent: 0,
-          decay: 0.5,
-          threshold: 2.5,
-          outpaced: 2,
-          existing: 1
-        };
+          // Table of values influencing amt of turns to learn talent/likelihood of filtered input being a talent
+          state.points = {
+            capitalization: 1.5,
+            newTalent: 0,
+            decay: 0.5,
+            threshold: 2.5,
+            outpaced: 2,
+            existing: 1
+          };
 
-        // Loop through each likelytalentname for storage as potential talents or gives exp to existing potential talents.
-        likelyTalentNames.forEach(likelyTalentNames => {
-          // Either returns existing potential talent's index or returns its nonexistence
-          let index = state.potentialTalents[plr].name.indexOf(likelyTalentNames);
+          // Loop through each likelytalentname for storage as potential talents or gives exp to existing potential talents.
+          likelyTalentNames.forEach(likelyTalentNames => {
+            // Either returns existing potential talent's index or returns its nonexistence
+            let index = state.potentialTalents[plr].name.indexOf(likelyTalentNames);
 
-          // New likly talent names are added to the potential talents list
-          if (index === -1) {
-            state.potentialTalents[plr].name.push(likelyTalentNames);
+            // New likly talent names are added to the potential talents list
+            if (index === -1) {
+              state.potentialTalents[plr].name.push(likelyTalentNames);
 
-            // Capitalization grants more exp b/c more likely to be actual talent name
-            if (isFirstLetterCapitalized(likelyTalentNames)) {
-              state.potentialTalents[plr].exp.push(state.points.capitalization);
+              // Capitalization grants more exp b/c more likely to be actual talent name
+              if (isFirstLetterCapitalized(likelyTalentNames)) {
+                state.potentialTalents[plr].exp.push(state.points.capitalization);
+              }
+              else {
+                // Default exp for new talent names
+                state.potentialTalents[plr].exp.push(state.points.newTalent);
+              }
+
             }
+            // Existing potential talents get exp
             else {
-              // Default exp for new talent names
-              state.potentialTalents[plr].exp.push(state.points.newTalent);
+              state.potentialTalents[plr].exp[index] += state.points.existing;
             }
+          });
 
-          }
-          // Existing potential talents get exp
-          else {
-            state.potentialTalents[plr].exp[index] += state.points.existing;
-          }
-        });
-
-        // Decrement unused talent names.
-        for (let i = 0; i < state.potentialTalents[plr].name.length; i++) {
-          // Exclude recently incremented talent names
-          if (!likelyTalentNames.includes(state.potentialTalents[plr].name[i])) {
-            state.potentialTalents[plr].exp[i] -= state.points.decay;
-          }
-        }
-
-        // Remove decayed below zero talent names
-        for (i = 0; i < state.potentialTalents[plr].name.length; i++) {
-          if (state.potentialTalents[plr].exp[i] < 0) {
-            state.potentialTalents[plr].name.splice(i, 1);
-            state.potentialTalents[plr].exp.splice(i, 1);
-            i--;
-          }
-        }
-
-        // Log in skill sc, talent learning progress 
-        const talentSC = storyCards.find(sc => sc.title === `${plr} Talents`)
-        talentSC.description = `Log ${state.turnCount} | Currently Learning: ${state.potentialTalents[plr].name}, Exp: ${state.potentialTalents[plr].exp}\n` + talentSC.description;
-
-        // Loop through the potentialtalents index to check for finished talents and put in a holder
-        talentNameHolder = [];
-        for (i = 0; i < state.potentialTalents[plr].name.length; i++) {
-          // Set the exp threshold for potential talents to be learned
-          if (state.potentialTalents[plr].exp[i] >= state.points.threshold) {
-            // Store string(s) of talent name when threshold is hit
-            talentNameHolder.push(state.potentialTalents[plr].name[i]);
-
-            // Once threshold is hit, no longer a potential talent so erase
-            state.potentialTalents[plr].name.splice(i, 1);
-            state.potentialTalents[plr].exp.splice(i, 1);
-
-            // Decrement to fix splice edits
-            i--;
-          }
-        }
-
-        // Full holder means final talent exists, dont push empty holder into player talent
-        if (talentNameHolder.length > 0) {
-          // Capitalize the talent, merge all individual string names in holder into the final talent name
-          talentNameHolder = talentNameHolder.map(word => word[0].toUpperCase() + word.slice(1).toLowerCase());
-          talentNameHolder = talentNameHolder.join(" ");
-          log("talentNameHolder: " + talentNameHolder);
-
-          // Store the learned talent, dont add duplicates to player talent
-          if (!state.players[plr].talents.name.includes(talentNameHolder) && !state.players[plr].skills.name.includes(talentNameHolder)) {
-            state.players[plr].talents.name.push(talentNameHolder);
-            state.players[plr].talents.lvl.push(randomInt(0, 3));
-            state.players[plr].talents.keys.push("");
-            // Temp cost before getEnergy output hook
-            state.players[plr].talents.cost.push(randomInt(5, 30));
-
-            // Decrement all potentialTalents exp since a talent was learned
-            for (i = 0; i < state.potentialTalents[plr].name.length; i++) {
-              state.potentialTalents[plr].exp[i] -= state.points.outpaced;
+          // Decrement unused talent names.
+          for (let i = 0; i < state.potentialTalents[plr].name.length; i++) {
+            // Exclude recently incremented talent names
+            if (!likelyTalentNames.includes(state.potentialTalents[plr].name[i])) {
+              state.potentialTalents[plr].exp[i] -= state.points.decay;
             }
+          }
 
-            // Energy cost determined by AI output, unlock on output function
-            state.askEnergyCost[plr] = true;
-            log("state.askEnergyCost[plr]: " + state.askEnergyCost[plr]);
-
-            // Talent Learn Success Message
-            learningFlavorText = learningFlavorText + toCoOpLang(plr, " You end up successfully learning the \"") + String(talentNameHolder) + "\" talent! ";
-
-            if (!onePlayerFlagger()) {
-              learningFlavorText = learningFlavorText + toCoOpLang(plr, "You check how many energy points the talent requires.");
-              log("state.players[plr].talents.name after learning: " + state.players[plr].talents.name);
+          // Remove decayed below zero talent names
+          for (i = 0; i < state.potentialTalents[plr].name.length; i++) {
+            if (state.potentialTalents[plr].exp[i] < 0) {
+              state.potentialTalents[plr].name.splice(i, 1);
+              state.potentialTalents[plr].exp.splice(i, 1);
+              i--;
             }
-          }//end of store learned talent
-        }//end of final talent exists
-      } //end of if likelytalent names exist
+          }
 
-    }//end of right conditions met so process talent learning
+          // Log in skill sc, talent learning progress 
+          const talentSC = storyCards.find(sc => sc.title === `${plr} Talents`)
+          talentSC.description = `Log ${state.turnCount} | Currently Learning: ${state.potentialTalents[plr].name}, Weight: ${state.potentialTalents[plr].exp}\n` + talentSC.description;
 
-    log("state.potentialTalents[plr].name: " + state.potentialTalents[plr].name);
-    log("state.potentialTalents[plr].exp: " + state.potentialTalents[plr].exp);
+          // Loop through the potentialtalents index to check for finished talents and put in a holder
+          talentNameHolder = [];
+          for (i = 0; i < state.potentialTalents[plr].name.length; i++) {
+            // Set the exp threshold for potential talents to be learned
+            if (state.potentialTalents[plr].exp[i] >= state.points.threshold) {
+              // Store string(s) of talent name when threshold is hit
+              talentNameHolder.push(state.potentialTalents[plr].name[i]);
 
-  });
+              // Once threshold is hit, no longer a potential talent so erase
+              state.potentialTalents[plr].name.splice(i, 1);
+              state.potentialTalents[plr].exp.splice(i, 1);
+
+              // Decrement to fix splice edits
+              i--;
+            }
+          }
+
+          // Full holder means final talent exists, dont push empty holder into player talent
+          if (talentNameHolder.length > 0) {
+            // Capitalize the talent, merge all individual string names in holder into the final talent name
+            talentNameHolder = talentNameHolder.map(word => word[0].toUpperCase() + word.slice(1).toLowerCase());
+            talentNameHolder = talentNameHolder.join(" ");
+            log("talentNameHolder: " + talentNameHolder);
+
+            // Store the learned talent, dont add duplicates to player talent
+            if (!state.players[plr].talents.name.includes(talentNameHolder) && !state.players[plr].skills.name.includes(talentNameHolder)) {
+              state.players[plr].talents.name.push(talentNameHolder);
+              state.players[plr].talents.lvl.push(randomInt(0, 3));
+              state.players[plr].talents.keys.push("");
+              // Temp cost before getEnergy output hook
+              state.players[plr].talents.cost.push(randomInt(5, 30));
+
+              // Decrement all potentialTalents exp since a talent was learned
+              for (i = 0; i < state.potentialTalents[plr].name.length; i++) {
+                state.potentialTalents[plr].exp[i] -= state.points.outpaced;
+              }
+
+              // Energy cost determined by AI output, unlock on output function
+              state.askEnergyCost[plr] = true;
+              log("state.askEnergyCost[plr]: " + state.askEnergyCost[plr]);
+
+              // Talent Learn Success Message
+              learningFlavorText = learningFlavorText + toCoOpLang(plr, " You end up successfully learning the \"") + String(talentNameHolder) + "\" talent! ";
+
+              if (!onePlayerFlagger()) {
+                learningFlavorText = learningFlavorText + toCoOpLang(plr, "You check how many energy points the talent requires.");
+                log("state.players[plr].talents.name after learning: " + state.players[plr].talents.name);
+              }
+            }//end of store learned talent
+          }//end of final talent exists
+        } //end of if likelytalent names exist
+
+      }//end of right conditions met so process talent learning
+
+      //log("state.potentialTalents[plr].name: " + state.potentialTalents[plr].name);
+      //log("state.potentialTalents[plr].exp: " + state.potentialTalents[plr].exp);
+
+    });
+  }
 
   storeTalentsToSC();
 
@@ -4959,21 +4991,23 @@ function upgradePlayerTalents(text) {
 
 ///////////////////////////////////////////////////////////////////////////////////
 
-///Player skills will be stored in an sc. CREATE initial sc. Skills will STORE TO or RETREIVE FROM sc.
+/// Player skills will be stored in an sc. CREATE initial sc. Skills will STORE TO or RETREIVE FROM sc.
 
 // Function to create new class skills for player and store to their skills
-function createClassSkills(plr) {
+function createClassSkills(plr, numOfSkills, wipeOldSkills) {
   classString = state.players[plr].class_;
+  createdHolder = [];
 
   if (classString && classSkillParts[classString]) {
-    // Ensure player skills starts off empty
-    state.players[plr].skills.name = [];
-    state.players[plr].skills.lvl = [];
-    state.players[plr].skills.cost = [];
+    // Wipe old skills if flag is set
+    if (wipeOldSkills) {
+      state.players[plr].skills.name = [];
+      state.players[plr].skills.lvl = [];
+      state.players[plr].skills.cost = [];
+    }
 
-
-    // Make 3 starting skills
-    for (let i = 0; i < 3; i++) {
+    // Make starting skills
+    for (let i = 0; i < numOfSkills; i++) {
       // Pick two different random skill parts to combine
       let part1, part2;
       do {
@@ -4983,11 +5017,19 @@ function createClassSkills(plr) {
 
       const createdSkill = `${part1} ${part2}`;
 
+      createdHolder.push(createdSkill);
       state.players[plr].skills.name.push(createdSkill);
       state.players[plr].skills.lvl.push(randomInt(0, 9));
       state.players[plr].skills.cost.push(randomInt(10, 40));
     }
   }
+
+  // Return string of created skills
+  if (createdHolder.length > 0) {
+    createdHolder = createdHolder.join(", ");
+  }
+
+  return createdHolder;
 }
 
 // Always CREATE initial sc if none.
@@ -5005,7 +5047,7 @@ function createIfNoSkillSC() {
       skillSC.description = "Format for Modifying: SkillName (LVL) (MP), etc.";
 
       // Get player class and create the skills they start with
-      createClassSkills(plr);
+      createClassSkills(plr, 3, true);
     }
   });
 
@@ -5124,6 +5166,56 @@ function upgradePlayerSkills(text) {
   storeSkillsToSC();
 
   return text;
+}
+
+// Rewards a skill to plr every set level
+function rewardSkillForLevelUp(text) {
+  skillRewardText = "";
+  // How many levels needed to get a new skill
+  lvlReqForSkillReward = 5;
+
+  state.playerList.forEach(plr => {
+    plrLvl = state.players[plr].stats.maxLvl;
+
+    // Initialize old lvl tracker
+    if (!state.oldLvlHolder[plr]) {
+      state.oldLvlHolder[plr] = plrLvl || 1;
+    }
+
+    // Hold player's old lvl until they meet the lvl req for a new skill
+    if (state.oldLvlHolder[plr] && plrLvl) {
+      lvlsAbove = plrLvl - state.oldLvlHolder[plr];
+      log("lvlsAbove: " + lvlsAbove);
+      log("plrLvl: " + plrLvl);
+      log("state.oldLvlHolder[plr]: " + state.oldLvlHolder[plr]);
+
+      // Player has met the lvl req for new skill
+      if (lvlsAbove >= lvlReqForSkillReward) {
+        // Increment num of skill rewards according to num of times lvl req is fulfilled
+        numSkillReward = Math.floor(lvlsAbove / lvlReqForSkillReward);
+        log("numSkillReward: " + numSkillReward);
+
+        // Update old lvl tracker to new lvl minus remainder. Tracker must follow lvl req intervals
+        trackCorrection = lvlsAbove % lvlReqForSkillReward
+        state.oldLvlHolder[plr] = plrLvl - trackCorrection;
+
+
+        learnedSkills = createClassSkills(plr, numSkillReward, false);
+
+        skillRewardText += toCoOpLang(plr, ` ${skillAcquisitionPhrases[randomInt(0, skillAcquisitionPhrases.length - 1)].replace("[Skill]", learnedSkills)}`);
+      }
+      
+      // If player has edited their lvl to below tracked lvl, update tracked lvl
+      if(plrLvl < state.oldLvlHolder[plr]){
+        state.oldLvlHolder[plr] = plrLvl;
+      }
+
+    }
+  });
+
+  storeSkillsToSC();
+
+  return text + skillRewardText;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -5396,35 +5488,34 @@ function getTier(number) {
 function detectStorageCallActions(text) {
   newText = "";
 
-  // Check which players are in the input and store their name and corresponding text
-  result = separateByPlr(text);
-  plrsDetected = Object.keys(result);
-  plrText = {};
-
-  // Store each player's text
-  plrsDetected.forEach(plr => {
-    if (result[plr].length > 0) {
-      plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
-    }
-    else {
-      plrText[plr] = result[plr].join(" ");
+  // Verify player is not dialoguing (case-insensitive)
+  dialogueFlag = true;
+  dialoguePhrases.forEach(phrase => {
+    if (text.toLowerCase().includes(phrase.toLowerCase())) {
+      // Disable check dialoguing exists
+      dialogueFlag = false;
     }
   });
 
-  plrsDetected.forEach(plr => {
-    startAction = false;
-    actionFlavorText = "";
+  if (dialogueFlag) {
+    // Check which players are in the input and store their name and corresponding text
+    result = separateByPlr(text);
+    plrsDetected = Object.keys(result);
+    plrText = {};
 
-    // Verify player is not dialoguing (case-insensitive)
-    dialogueCheck = true;
-    dialoguePhrases.forEach(phrase => {
-      if (text.toLowerCase().includes(phrase.toLowerCase())) {
-        // Disable check dialoguing exists
-        dialogueCheck = false;
+    // Store each player's text
+    plrsDetected.forEach(plr => {
+      if (result[plr].length > 0) {
+        plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
+      }
+      else {
+        plrText[plr] = result[plr].join(" ");
       }
     });
 
-    if (dialogueCheck == true) {
+    plrsDetected.forEach(plr => {
+      startAction = false;
+      actionFlavorText = "";
       actionTextInput = [];
 
       // Get talent keys to store as action words
@@ -5474,344 +5565,344 @@ function detectStorageCallActions(text) {
           log("startAction: " + startAction);
         }
       }
-    }
 
-    if (startAction) {
-      // Intialize storage copies
-      plrStorage = {
-        types: [state.players[plr].inv.item, state.players[plr].talents.name, state.players[plr].skills.name],
-        lvls: [null, state.players[plr].talents.lvl, state.players[plr].skills.lvl],
-        costs: [state.players[plr].inv.amt, state.players[plr].talents.cost, state.players[plr].skills.cost]
-      };
+      if (startAction) {
+        // Intialize storage copies
+        plrStorage = {
+          types: [state.players[plr].inv.item, state.players[plr].talents.name, state.players[plr].skills.name],
+          lvls: [null, state.players[plr].talents.lvl, state.players[plr].skills.lvl],
+          costs: [state.players[plr].inv.amt, state.players[plr].talents.cost, state.players[plr].skills.cost]
+        };
 
-      plrThings = {
-        // 0 is item, 1 is talent, 2 is skill
-        types: [],
-        // index of thing in storage
-        indices: [],
-        // True for full match, false for partial match
-        fullMatchFlags: []
-      };
+        plrThings = {
+          // 0 is item, 1 is talent, 2 is skill
+          types: [],
+          // index of thing in storage
+          indices: [],
+          // True for full match, false for partial match
+          fullMatchFlags: []
+        };
 
-      calls = {
-        types: [],
-        indices: [],
-        fullMatchFlags: []
-      };
+        calls = {
+          types: [],
+          indices: [],
+          fullMatchFlags: []
+        };
 
-      // For each input word
-      for (let i = 0; i < actionTextInput.length; i++) {
-        // Loop through each type of storage
-        for (let x = 0; x < plrStorage.types.length; x++) {
-          // Find all things in the storage that the word can call
-          plrStorage.types[x].forEach((thing, ind) => {
-            // Initialize flags
-            isFullMatch = true;
-            isPartialMatch = false;
+        // For each input word
+        for (let i = 0; i < actionTextInput.length; i++) {
+          // Loop through each type of storage
+          for (let x = 0; x < plrStorage.types.length; x++) {
+            // Find all things in the storage that the word can call
+            plrStorage.types[x].forEach((thing, ind) => {
+              // Initialize flags
+              isFullMatch = true;
+              isPartialMatch = false;
 
-            // Split to parts for multi worded things (case insensitive)
-            thingParts = thing.toLowerCase().split(" ");
+              // Split to parts for multi worded things (case insensitive)
+              thingParts = thing.toLowerCase().split(" ");
 
-            // Check if current thing in current storage is a PARTIAL match of current word (complete/prefix match)
-            if (
-              !stopWords.includes(actionTextInput[i]) &&
-              (
-                thingParts[0] == actionTextInput[i] ||
-                (actionTextInput[i].length >= 4 && thingParts[0].startsWith(actionTextInput[i].toLowerCase()))
-              )
-            ) {
-              isPartialMatch = true;
+              // Check if current thing in current storage is a PARTIAL match of current word (complete/prefix match)
+              if (
+                !stopWords.includes(actionTextInput[i]) &&
+                (
+                  thingParts[0] == actionTextInput[i] ||
+                  (actionTextInput[i].length >= 4 && thingParts[0].startsWith(actionTextInput[i].toLowerCase()))
+                )
+              ) {
+                isPartialMatch = true;
+              }
+              // Prevent matching things past input length. -1 to account for thingParts matching current index
+              if (i + thingParts.length - 1 > actionTextInput.length - 1) {
+                isFullMatch = false;
+              }
+              else {
+                // Check if current thing in current storage is a FULL match of current word 
+                for (j = 0; j < thingParts.length; j++) {
+                  if (thingParts[j] !== actionTextInput[i + j].toLowerCase()) {
+                    isFullMatch = false;
+                    break;
+                  }
+                }
+              }
+
+              // If current thing is a FULL match (override partial match), push its type, its storage index, and full match flag into a respective array
+              if (isFullMatch) {
+                plrThings.types.push(x);
+                plrThings.indices.push(ind);
+                plrThings.fullMatchFlags.push(true);
+
+                // Move input index forward by matched thing length to avoid duplicate matching. -1 to accomodate loop increment.
+                i = i + thingParts.length - 1;
+              }
+              // If current thing is a PARTIAL match, push its type, its storage index, and full match flag into a respective array
+              else if (isPartialMatch) {
+                plrThings.types.push(x);
+                plrThings.indices.push(ind);
+                plrThings.fullMatchFlags.push(false);
+              }
+
+            }); //end of for thing
+          } //end of for playerstorage
+
+          // If any talent keys are matched, push respective talent thing
+          state.players[plr].talents.keys.forEach((keys, index) => {
+            if (keys.includes(actionTextInput[i])) {
+              plrThings.types.push(1);
+              plrThings.indices.push(index);
+              plrThings.fullMatchFlags.push(true);
             }
-            // Prevent matching things past input length. -1 to account for thingParts matching current index
-            if (i + thingParts.length - 1 > actionTextInput.length - 1) {
-              isFullMatch = false;
+          });
+
+          // After looping through all things and storages for the current word, push array of matched things into calls. A call is an array of matched things found for a word.
+          if (plrThings.types.length > 0) {
+            calls.types.push(plrThings.types);
+            calls.indices.push(plrThings.indices);
+            calls.fullMatchFlags.push(plrThings.fullMatchFlags);
+
+            // Reset arrays for the next word call
+            plrThings.types = [];
+            plrThings.indices = [];
+            plrThings.fullMatchFlags = [];
+          }
+
+        } //end of for input
+        for (i = 0; i < calls.types.length; i++) {
+          log('calls.types: ' + calls.types[i]);
+          log('calls.indices: ' + calls.indices[i]);
+          log('calls.fullMatchFlags: ' + calls.fullMatchFlags[i]);
+          log("----------------");
+        }
+
+        // Case A: If NO matches found, feed storages to AI context for AI to write rejection and send flavor text to output
+        if (calls.types.length === 0) {
+          // Get mp and ep penalty for action fail. Ensure deduction does not turn stat negative
+          penalty = 15;
+          if (state.players[plr].stats.mp < penalty) {
+            penalty = state.players[plr].stats.mp;
+          }
+          statUp(plr, "mp", -1 * randomFloat(0.01, penalty));
+
+          if (state.players[plr].stats.ep < penalty) {
+            penalty = state.players[plr].stats.ep;
+          }
+          statUp(plr, "ep", -1 * randomFloat(0.01, penalty));
+
+          // Unlock Context Hook feed to influence AI to reject 
+          allItems = [];
+          allTalents = [];
+          allSkills = [];
+
+          // Get all plr items
+          state.players[plr].inv.item.forEach((itm, index) => {
+            allItems.push(`${state.players[plr].inv.amt[index]} ${state.players[plr].inv.item[index]}`);
+          })
+          if (allItems.length == 0) {
+            allItems.push("nothing");
+          }
+          allItems = allItems.join(", ");
+
+          // Get all plr talents
+          state.players[plr].talents.name.forEach((itm, index) => {
+            talentTier = getTier(state.players[plr].talents.lvl[index]);
+            allTalents.push(`${talentTier} ${state.players[plr].talents.name[index]}`);
+          })
+          if (allTalents.length == 0) {
+            allTalents.push("nothing");
+          }
+          allTalents = allTalents.join(", ");
+
+          // Get all plr skills
+          state.players[plr].skills.name.forEach((itm, index) => {
+            skillTier = getTier(state.players[plr].skills.lvl[index]);
+            allSkills.push(`${skillTier} ${state.players[plr].skills.name[index]}`);
+          })
+          if (allSkills.length == 0) {
+            allSkills.push("nothing");
+          }
+          allSkills = allSkills.join(", ");
+
+          if (!onePlayerFlagger()) {
+            state.strgCheckText = state.strgCheckText + ` ${plr} realizes they have nothing in their inventory but only ${allItems}. ${plr} realizes they have no applicable talents but only ${allTalents}. ${plr} realize they have no applicable skills but only ${allSkills}. ${plr} anticipates failure for not having the right item, skill, or talent to use right now. `;
+          }
+          else {
+            state.strgCheckText = ` You realize you have nothing in your inventory but only ${allItems}. You realize you have no applicable talents but only ${allTalents}. You realize you have no applicable skills but only ${allSkills}. You anticipate failure for not having the right item, skill, or talent to use right now.`
+          }
+
+          state.unlockStrgToContext = true;
+          log("state.unlockStrgToContext: " + state.unlockStrgToContext);
+        }
+        // Case B: Things HAVE been matched
+        if (calls.types.length > 0) {
+          // For each word call (array of matched things)
+          calls.types.forEach((wordCall, i_currentCall) => {
+            final = {
+              fullTypes: [],
+              fullIndices: [],
+              partialTypes: [],
+              partialIndices: [],
+            };
+
+            notEnough = {
+              fullTypes: [],
+              fullIndices: [],
+              partialTypes: [],
+              partialIndices: [],
+            };
+
+            statPassFlags = [];
+
+            // For current word call, for each matched thing, perform and store a stat check
+            wordCall.forEach((typeOfTheThing, i_currentThing) => {
+              // is an ITEM
+              if (typeOfTheThing == 0) {
+                itemIndex = calls.indices[i_currentCall][i_currentThing];
+
+                //todo: fix
+                statPassFlags.push(true);
+              }
+              // is a TALENT, store index of current thing in current call
+              if (typeOfTheThing == 1) {
+                talentIndex = calls.indices[i_currentCall][i_currentThing];
+
+                // Checks if player will have enough ep for the talent
+                if (state.players[plr].stats.ep < state.players[plr].talents.cost[talentIndex]) {
+                  statPassFlags.push(false);
+                }
+                else {
+                  statPassFlags.push(true);
+                }
+              }
+              // is a SKILL 
+              if (typeOfTheThing == 2) {
+                skillIndex = calls.indices[i_currentCall][i_currentThing];
+
+                // Checks if player will have enough mp for the skill
+                if (state.players[plr].stats.mp < state.players[plr].skills.cost[skillIndex]) {
+                  statPassFlags.push(false);
+                }
+                else {
+                  statPassFlags.push(true);
+                }
+              }
+            });
+            log('statPassFlags: ' + statPassFlags);
+
+            // For the current word call, for each thing, store things that pass stat req. as final matches
+            statPassFlags.forEach((thingPassesReq, i_currentMatch) => {
+              // If player HAS the stat requirement
+              if (thingPassesReq) {
+                // If FULL match, store as final matches
+                if (calls.fullMatchFlags[i_currentCall][i_currentMatch]) {
+                  final.fullTypes.push(calls.types[i_currentCall][i_currentMatch]);
+                  final.fullIndices.push(calls.indices[i_currentCall][i_currentMatch]);
+                }
+                // If PARTIAL match, store as final matches
+                if (!calls.fullMatchFlags[i_currentCall][i_currentMatch]) {
+                  final.partialTypes.push(calls.types[i_currentCall][i_currentMatch]);
+                  final.partialIndices.push(calls.indices[i_currentCall][i_currentMatch]);
+                }
+              }
+              // If player does NOT have the stat requirements
+              else {
+                // FULL matches that fail the stat req
+                if (calls.fullMatchFlags[i_currentCall][i_currentMatch]) {
+                  notEnough.fullTypes.push(calls.types[i_currentCall][i_currentMatch]);
+                  notEnough.fullIndices.push(calls.indices[i_currentCall][i_currentMatch]);
+                }
+                // PARTIAL matches that fail the stat req
+                if (!calls.fullMatchFlags[i_currentCall][i_currentMatch]) {
+                  notEnough.partialTypes.push(calls.types[i_currentCall][i_currentMatch]);
+                  notEnough.partialIndices.push(calls.indices[i_currentCall][i_currentMatch]);
+                }
+              }
+            });
+            log('final.fullTypes: ' + final.fullTypes);
+            log('final.fullIndices: ' + final.fullIndices);
+            log('final.partialTypes: ' + final.partialTypes);
+            log('final.partialIndices: ' + final.partialIndices);
+            log('notEnough.fullTypes: ' + notEnough.fullTypes);
+            log('notEnough.fullIndices: ' + notEnough.fullIndices);
+            log('notEnough.partialTypes: ' + notEnough.partialTypes);
+            log('notEnough.partialIndices: ' + notEnough.partialIndices);
+            log("----------------");
+
+            // Case 1: If player has final FULL thing, execute random one if more than one. Partials are overriden due to exact match found.
+            if (final.fullIndices.length > 0) {
+              // Get random thing
+              randomed = randomInt(0, final.fullIndices.length - 1)
+              index = final.fullIndices[randomed];
+              type = final.fullTypes[randomed];
+
+              // Final is a FULL TALENT
+              if (type == 1) {
+                actionFlavorText = actionFlavorText + executeTalent(plr, true, index);
+                talentCastedToSkill(plr, actionTextInput, index, allActionWordIndices);
+              }
+              // Final is a FULL SKILL
+              else if (type == 2) {
+                actionFlavorText = actionFlavorText + executeskill(plr, true, index);
+              }
+
             }
-            else {
-              // Check if current thing in current storage is a FULL match of current word 
-              for (j = 0; j < thingParts.length; j++) {
-                if (thingParts[j] !== actionTextInput[i + j].toLowerCase()) {
-                  isFullMatch = false;
-                  break;
+            // Case 2: If player has only final PARTIAL thing, execute random one if more than one.
+            else if (final.partialIndices.length > 0) {
+              // Get random thing
+              randomed = randomInt(0, final.partialIndices.length - 1);
+              index = final.partialIndices[randomed];
+              type = final.partialTypes[randomed];
+
+              // Final is a PARTIAL TALENT
+              if (type == 1) {
+                actionFlavorText = actionFlavorText + executeTalent(plr, false, index);
+              }
+              // Final is PARTIAL SKILL
+              else if (type == 2) {
+                actionFlavorText = actionFlavorText + executeskill(plr, false, index);
+              }
+            }
+            // If player has matched things, whether partial or full, but NOTHING passes the stat req, this means player does not have enough stat to execute thing
+            if (final.fullIndices.length === 0 && final.partialIndices.length === 0) {
+              // Case 3: Not enough for a FULL thing, choose random if more than one and execute fail. Partials are overriden due to exact match found.
+              if (notEnough.fullIndices.length > 0) {
+                // Get random thing
+                randomed = randomInt(0, notEnough.fullIndices.length - 1)
+                index = notEnough.fullIndices[randomed];
+                type = notEnough.fullTypes[randomed];
+
+                // notEnough is a FULL TALENT
+                if (type == 1) {
+                  actionFlavorText = actionFlavorText + ` ${realizePhrases[randomInt(0, realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0, notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "energy").replace("[thing]", state.players[plr].talents.name[index])}`
+                }
+                // notEnough is a FULL SKILL
+                else if (type == 2) {
+                  actionFlavorText = actionFlavorText + ` ${realizePhrases[randomInt(0, realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0, notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "mana").replace("[thing]", state.players[plr].skills.name[index])}`
+                }
+              }
+              // Case 4: Not enough for a PARTIAL thing. Choose random if more than one and execute fail.
+              else if (notEnough.partialIndices.length > 0) {
+                // Get random thing
+                randomed = randomInt(0, notEnough.partialIndices.length - 1)
+                index = notEnough.partialIndices[randomed];
+                type = notEnough.partialTypes[randomed];
+
+                // notEnough is a PARTIAL TALENT
+                if (type == 1) {
+                  actionFlavorText = actionFlavorText + ` ${realizePhrases[randomInt(0, realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0, notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "energy").replace("[thing]", state.players[plr].talents.name[index])}`
+                }
+                // notEnough is a PARTIAL SKILL
+                else if (type == 2) {
+                  actionFlavorText = actionFlavorText + ` ${realizePhrases[randomInt(0, realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0, notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "mana").replace("[thing]", state.players[plr].skills.name[index])}`
                 }
               }
             }
-
-            // If current thing is a FULL match (override partial match), push its type, its storage index, and full match flag into a respective array
-            if (isFullMatch) {
-              plrThings.types.push(x);
-              plrThings.indices.push(ind);
-              plrThings.fullMatchFlags.push(true);
-
-              // Move input index forward by matched thing length to avoid duplicate matching. -1 to accomodate loop increment.
-              i = i + thingParts.length - 1;
-            }
-            // If current thing is a PARTIAL match, push its type, its storage index, and full match flag into a respective array
-            else if (isPartialMatch) {
-              plrThings.types.push(x);
-              plrThings.indices.push(ind);
-              plrThings.fullMatchFlags.push(false);
-            }
-
-          }); //end of for thing
-        } //end of for playerstorage
-
-        // If any talent keys are matched, push respective talent thing
-        state.players[plr].talents.keys.forEach((keys, index) => {
-          if (keys.includes(actionTextInput[i])) {
-            plrThings.types.push(1);
-            plrThings.indices.push(index);
-            plrThings.fullMatchFlags.push(true);
-          }
-        });
-
-        // After looping through all things and storages for the current word, push array of matched things into calls. A call is an array of matched things found for a word.
-        if (plrThings.types.length > 0) {
-          calls.types.push(plrThings.types);
-          calls.indices.push(plrThings.indices);
-          calls.fullMatchFlags.push(plrThings.fullMatchFlags);
-
-          // Reset arrays for the next word call
-          plrThings.types = [];
-          plrThings.indices = [];
-          plrThings.fullMatchFlags = [];
-        }
-
-      } //end of for input
-      for (i = 0; i < calls.types.length; i++) {
-        log('calls.types: ' + calls.types[i]);
-        log('calls.indices: ' + calls.indices[i]);
-        log('calls.fullMatchFlags: ' + calls.fullMatchFlags[i]);
-        log("----------------");
-      }
-
-      // Case A: If NO matches found, feed storages to AI context for AI to write rejection and send flavor text to output
-      if (calls.types.length === 0) {
-        // Get mp and ep penalty for action fail. Ensure deduction does not turn stat negative
-        penalty = 15;
-        if (state.players[plr].stats.mp < penalty) {
-          penalty = state.players[plr].stats.mp;
-        }
-        statUp(plr, "mp", -1 * randomFloat(0.01, penalty));
-
-        if (state.players[plr].stats.ep < penalty) {
-          penalty = state.players[plr].stats.ep;
-        }
-        statUp(plr, "ep", -1 * randomFloat(0.01, penalty));
-
-        // Unlock Context Hook feed to influence AI to reject 
-        allItems = [];
-        allTalents = [];
-        allSkills = [];
-
-        // Get all plr items
-        state.players[plr].inv.item.forEach((itm, index) => {
-          allItems.push(`${state.players[plr].inv.amt[index]} ${state.players[plr].inv.item[index]}`);
-        })
-        if (allItems.length == 0) {
-          allItems.push("nothing");
-        }
-        allItems = allItems.join(", ");
-
-        // Get all plr talents
-        state.players[plr].talents.name.forEach((itm, index) => {
-          talentTier = getTier(state.players[plr].talents.lvl[index]);
-          allTalents.push(`${talentTier} ${state.players[plr].talents.name[index]}`);
-        })
-        if (allTalents.length == 0) {
-          allTalents.push("nothing");
-        }
-        allTalents = allTalents.join(", ");
-
-        // Get all plr skills
-        state.players[plr].skills.name.forEach((itm, index) => {
-          skillTier = getTier(state.players[plr].skills.lvl[index]);
-          allSkills.push(`${skillTier} ${state.players[plr].skills.name[index]}`);
-        })
-        if (allSkills.length == 0) {
-          allSkills.push("nothing");
-        }
-        allSkills = allSkills.join(", ");
-
-        if (!onePlayerFlagger()) {
-          state.strgCheckText = state.strgCheckText + ` ${plr} realizes they have nothing in their inventory but only ${allItems}. ${plr} realizes they have no applicable talents but only ${allTalents}. ${plr} realize they have no applicable skills but only ${allSkills}. ${plr} anticipates failure for not having the right item, skill, or talent to use right now. `;
-        }
-        else {
-          state.strgCheckText = ` You realize you have nothing in your inventory but only ${allItems}. You realize you have no applicable talents but only ${allTalents}. You realize you have no applicable skills but only ${allSkills}. You anticipate failure for not having the right item, skill, or talent to use right now.`
-        }
-
-        state.unlockStrgToContext = true;
-        log("state.unlockStrgToContext: " + state.unlockStrgToContext);
-      }
-      // Case B: Things HAVE been matched
-      if (calls.types.length > 0) {
-        // For each word call (array of matched things)
-        calls.types.forEach((wordCall, i_currentCall) => {
-          final = {
-            fullTypes: [],
-            fullIndices: [],
-            partialTypes: [],
-            partialIndices: [],
-          };
-
-          notEnough = {
-            fullTypes: [],
-            fullIndices: [],
-            partialTypes: [],
-            partialIndices: [],
-          };
-
-          statPassFlags = [];
-
-          // For current word call, for each matched thing, perform and store a stat check
-          wordCall.forEach((typeOfTheThing, i_currentThing) => {
-            // is an ITEM
-            if (typeOfTheThing == 0) {
-              itemIndex = calls.indices[i_currentCall][i_currentThing];
-
-              //todo: fix
-              statPassFlags.push(true);
-            }
-            // is a TALENT, store index of current thing in current call
-            if (typeOfTheThing == 1) {
-              talentIndex = calls.indices[i_currentCall][i_currentThing];
-
-              // Checks if player will have enough ep for the talent
-              if (state.players[plr].stats.ep < state.players[plr].talents.cost[talentIndex]) {
-                statPassFlags.push(false);
-              }
-              else {
-                statPassFlags.push(true);
-              }
-            }
-            // is a SKILL 
-            if (typeOfTheThing == 2) {
-              skillIndex = calls.indices[i_currentCall][i_currentThing];
-
-              // Checks if player will have enough mp for the skill
-              if (state.players[plr].stats.mp < state.players[plr].skills.cost[skillIndex]) {
-                statPassFlags.push(false);
-              }
-              else {
-                statPassFlags.push(true);
-              }
-            }
           });
-          log('statPassFlags: ' + statPassFlags);
+        }//end of things matched
+      }//end of start action
 
-          // For the current word call, for each thing, store things that pass stat req. as final matches
-          statPassFlags.forEach((thingPassesReq, i_currentMatch) => {
-            // If player HAS the stat requirement
-            if (thingPassesReq) {
-              // If FULL match, store as final matches
-              if (calls.fullMatchFlags[i_currentCall][i_currentMatch]) {
-                final.fullTypes.push(calls.types[i_currentCall][i_currentMatch]);
-                final.fullIndices.push(calls.indices[i_currentCall][i_currentMatch]);
-              }
-              // If PARTIAL match, store as final matches
-              if (!calls.fullMatchFlags[i_currentCall][i_currentMatch]) {
-                final.partialTypes.push(calls.types[i_currentCall][i_currentMatch]);
-                final.partialIndices.push(calls.indices[i_currentCall][i_currentMatch]);
-              }
-            }
-            // If player does NOT have the stat requirements
-            else {
-              // FULL matches that fail the stat req
-              if (calls.fullMatchFlags[i_currentCall][i_currentMatch]) {
-                notEnough.fullTypes.push(calls.types[i_currentCall][i_currentMatch]);
-                notEnough.fullIndices.push(calls.indices[i_currentCall][i_currentMatch]);
-              }
-              // PARTIAL matches that fail the stat req
-              if (!calls.fullMatchFlags[i_currentCall][i_currentMatch]) {
-                notEnough.partialTypes.push(calls.types[i_currentCall][i_currentMatch]);
-                notEnough.partialIndices.push(calls.indices[i_currentCall][i_currentMatch]);
-              }
-            }
-          });
-          log('final.fullTypes: ' + final.fullTypes);
-          log('final.fullIndices: ' + final.fullIndices);
-          log('final.partialTypes: ' + final.partialTypes);
-          log('final.partialIndices: ' + final.partialIndices);
-          log('notEnough.fullTypes: ' + notEnough.fullTypes);
-          log('notEnough.fullIndices: ' + notEnough.fullIndices);
-          log('notEnough.partialTypes: ' + notEnough.partialTypes);
-          log('notEnough.partialIndices: ' + notEnough.partialIndices);
-          log("----------------");
-
-          // Case 1: If player has final FULL thing, execute random one if more than one. Partials are overriden due to exact match found.
-          if (final.fullIndices.length > 0) {
-            // Get random thing
-            randomed = randomInt(0, final.fullIndices.length - 1)
-            index = final.fullIndices[randomed];
-            type = final.fullTypes[randomed];
-
-            // Final is a FULL TALENT
-            if (type == 1) {
-              actionFlavorText = actionFlavorText + executeTalent(plr, true, index);
-              talentCastedToSkill(plr, actionTextInput, index, allActionWordIndices);
-            }
-            // Final is a FULL SKILL
-            else if (type == 2) {
-              actionFlavorText = actionFlavorText + executeskill(plr, true, index);
-            }
-
-          }
-          // Case 2: If player has only final PARTIAL thing, execute random one if more than one.
-          else if (final.partialIndices.length > 0) {
-            // Get random thing
-            randomed = randomInt(0, final.partialIndices.length - 1);
-            index = final.partialIndices[randomed];
-            type = final.partialTypes[randomed];
-
-            // Final is a PARTIAL TALENT
-            if (type == 1) {
-              actionFlavorText = actionFlavorText + executeTalent(plr, false, index);
-            }
-            // Final is PARTIAL SKILL
-            else if (type == 2) {
-              actionFlavorText = actionFlavorText + executeskill(plr, false, index);
-            }
-          }
-          // If player has matched things, whether partial or full, but NOTHING passes the stat req, this means player does not have enough stat to execute thing
-          if (final.fullIndices.length === 0 && final.partialIndices.length === 0) {
-            // Case 3: Not enough for a FULL thing, choose random if more than one and execute fail. Partials are overriden due to exact match found.
-            if (notEnough.fullIndices.length > 0) {
-              // Get random thing
-              randomed = randomInt(0, notEnough.fullIndices.length - 1)
-              index = notEnough.fullIndices[randomed];
-              type = notEnough.fullTypes[randomed];
-
-              // notEnough is a FULL TALENT
-              if (type == 1) {
-                actionFlavorText = actionFlavorText + ` ${realizePhrases[randomInt(0, realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0, notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "energy").replace("[thing]", state.players[plr].talents.name[index])}`
-              }
-              // notEnough is a FULL SKILL
-              else if (type == 2) {
-                actionFlavorText = actionFlavorText + ` ${realizePhrases[randomInt(0, realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0, notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "mana").replace("[thing]", state.players[plr].skills.name[index])}`
-              }
-            }
-            // Case 4: Not enough for a PARTIAL thing. Choose random if more than one and execute fail.
-            else if (notEnough.partialIndices.length > 0) {
-              // Get random thing
-              randomed = randomInt(0, notEnough.partialIndices.length - 1)
-              index = notEnough.partialIndices[randomed];
-              type = notEnough.partialTypes[randomed];
-
-              // notEnough is a PARTIAL TALENT
-              if (type == 1) {
-                actionFlavorText = actionFlavorText + ` ${realizePhrases[randomInt(0, realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0, notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "energy").replace("[thing]", state.players[plr].talents.name[index])}`
-              }
-              // notEnough is a PARTIAL SKILL
-              else if (type == 2) {
-                actionFlavorText = actionFlavorText + ` ${realizePhrases[randomInt(0, realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0, notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "mana").replace("[thing]", state.players[plr].skills.name[index])}`
-              }
-            }
-          }
-        });
-      }//end of things matched
-    }//end of start action
-
-    newText = newText + plrText[plr] + toCoOpLang(plr, actionFlavorText);
-  });
+      newText = newText + plrText[plr] + toCoOpLang(plr, actionFlavorText);
+    });
+  }
 
   if (!newText == "") {
     return newText;
@@ -5827,34 +5918,34 @@ function detectStorageCallActions(text) {
 function detectResting(text) {
   let newText = "";
 
-  // Check which players are in the input and store their name and corresponding text
-  let result = separateByPlr(text);
-  let plrsDetected = Object.keys(result);
-  let plrText = {};
-
-  // Store each player's text
-  plrsDetected.forEach(plr => {
-    if (result[plr].length > 0) {
-      plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
-    } else {
-      plrText[plr] = result[plr].join(" ");
+  // Check if player is not dialoguing
+  let dialogueFlag = true;
+  dialoguePhrases.forEach(phrase => {
+    if (text.toLowerCase().includes(phrase.toLowerCase())) {
+      dialogueFlag = false;
     }
   });
 
-  plrsDetected.forEach(plr => {
-    let isEntering = false;
-    let startRest = false;
-    let restFlavorText = "";
+  if (dialogueFlag) {
+    // Check which players are in the input and store their name and corresponding text
+    let result = separateByPlr(text);
+    let plrsDetected = Object.keys(result);
+    let plrText = {};
 
-    // Check if player is not dialoguing
-    let dialogueCheck = true;
-    dialoguePhrases.forEach(phrase => {
-      if (plrText[plr].toLowerCase().includes(phrase.toLowerCase())) {
-        dialogueCheck = false;
+    // Store each player's text
+    plrsDetected.forEach(plr => {
+      if (result[plr].length > 0) {
+        plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
+      } else {
+        plrText[plr] = result[plr].join(" ");
       }
     });
 
-    if (dialogueCheck) {
+    plrsDetected.forEach(plr => {
+      let isEntering = false;
+      let startRest = false;
+      let restFlavorText = "";
+
       restingTextInput = [];
       restingTextInput = findTargetsThenSplit(plrText[plr], enterWords, true);
       log("restingTextInput simplified: " + restingTextInput);
@@ -5874,40 +5965,40 @@ function detectResting(text) {
           log("startRest: " + startRest);
         }
       }
-    }
 
-    if (isEntering && startRest) {
-      let lightRest = cleanStringCheckForTargets(lightRestWords, plrText[plr]);
-      let moderateRest = cleanStringCheckForTargets(moderateRestWords, plrText[plr]);
-      let fullRest = cleanStringCheckForTargets(fullRestWords, plrText[plr]);
+      if (isEntering && startRest) {
+        let lightRest = cleanStringCheckForTargets(lightRestWords, plrText[plr]);
+        let moderateRest = cleanStringCheckForTargets(moderateRestWords, plrText[plr]);
+        let fullRest = cleanStringCheckForTargets(fullRestWords, plrText[plr]);
 
-      let restBonus = 0.2;
-      let restMessage = toCoOpLang(plr, "Your time resting leaves you feeling more okay.");
+        let restBonus = 0.2;
+        let restMessage = toCoOpLang(plr, "Your time resting leaves you feeling more okay.");
 
-      if (fullRest) {
-        restBonus = randomFloat(0.6, 0.9);
-        restMessage = toCoOpLang(plr, "Your time resting leaves you feeling recovered.");
-      } else if (moderateRest) {
-        restBonus = randomFloat(0.4, 0.6);
-        restMessage = toCoOpLang(plr, "Your time resting leaves you feeling better than you were before.");
-      } else if (lightRest) {
-        restBonus = randomFloat(0.2, 0.4);
-        restMessage = toCoOpLang(plr, "Your time resting leaves you feeling a bit better.");
-      } else {
-        restBonus = randomFloat(0.2, 0.4);
-        restMessage = toCoOpLang(plr, "Your time resting leaves you feeling more okay.");
+        if (fullRest) {
+          restBonus = randomFloat(0.6, 0.9);
+          restMessage = toCoOpLang(plr, "Your time resting leaves you feeling recovered.");
+        } else if (moderateRest) {
+          restBonus = randomFloat(0.4, 0.6);
+          restMessage = toCoOpLang(plr, "Your time resting leaves you feeling better than you were before.");
+        } else if (lightRest) {
+          restBonus = randomFloat(0.2, 0.4);
+          restMessage = toCoOpLang(plr, "Your time resting leaves you feeling a bit better.");
+        } else {
+          restBonus = randomFloat(0.2, 0.4);
+          restMessage = toCoOpLang(plr, "Your time resting leaves you feeling more okay.");
+        }
+
+        statUp(plr, "hp", state.players[plr].stats.maxHp * restBonus);
+        statUp(plr, "ep", state.players[plr].stats.maxEp * restBonus);
+        statUp(plr, "mp", state.players[plr].stats.maxMp * restBonus);
+
+        restFlavorText = ` ${restMessage} `;
+        storeStatsToSC();
       }
 
-      statUp(plr, "hp", state.players[plr].stats.maxHp * restBonus);
-      statUp(plr, "ep", state.players[plr].stats.maxEp * restBonus);
-      statUp(plr, "mp", state.players[plr].stats.maxMp * restBonus);
-
-      restFlavorText = ` ${restMessage} `;
-      storeStatsToSC();
-    }
-
-    newText += plrText[plr] + restFlavorText;
-  });
+      newText += plrText[plr] + restFlavorText;
+    });
+  }
 
   return newText !== "" ? newText : text;
 }
@@ -5917,91 +6008,92 @@ function detectResting(text) {
 function detectConsuming(text) {
   let newText = "";
 
-  // Split text by player
-  let result = separateByPlr(text);
-  let plrsDetected = Object.keys(result);
-  let plrText = {};
-
-  plrsDetected.forEach(plr => {
-    if (result[plr].length > 0) {
-      plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
-    } else {
-      plrText[plr] = result[plr].join(" ");
+  // Check for dialog phrases
+  let dialogueFlag = true;
+  dialoguePhrases.forEach(phrase => {
+    if (text.toLowerCase().includes(phrase.toLowerCase())) {
+      dialogueFlag = false;
     }
   });
 
-  plrsDetected.forEach(plr => {
-    let startConsume = false;
-    let consumeFlavorText = "";
+  if (dialogueFlag == true) {
+    // Split text by player
+    let result = separateByPlr(text);
+    let plrsDetected = Object.keys(result);
+    let plrText = {};
 
-    // Check for dialog phrases
-    let dialogueCheck = true;
-    dialoguePhrases.forEach(phrase => {
-      if (plrText[plr].toLowerCase().includes(phrase.toLowerCase())) {
-        dialogueCheck = false;
+    plrsDetected.forEach(plr => {
+      if (result[plr].length > 0) {
+        plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
+      } else {
+        plrText[plr] = result[plr].join(" ");
       }
     });
 
-    //If player is not dialoguing, check input for consume words and split the input
-    if (dialogueCheck == true) {
+    plrsDetected.forEach(plr => {
+      let startConsume = false;
+      let consumeFlavorText = "";
+
+      // Check input for consume words and split the input
       consumingTextInput = []
       consumingTextInput = findTargetsThenSplit(plrText[plr], consumeWords, true);
       log("consumingTextInput simplified: " + consumingTextInput);
 
-      //If input has consume words get their indices
+      // If input has consume words get their indices
       if (consumingTextInput != null) {
         allConsumeWordsIndices = [];
         allConsumeWordsIndices = indicesOfTargets(consumingTextInput, consumeWords);
         log("allConsumeWordsIndices:" + allConsumeWordsIndices);
 
-        //Detect if there is  you + consume or and + consume
+        // Detect if there is  you + consume or and + consume
         if (allConsumeWordsIndices != null) {
           startConsume = checkYouBeforeIndicesArr(plr, consumingTextInput, allConsumeWordsIndices, 3) || checkAndBeforeIndicesArr(consumingTextInput, allConsumeWordsIndices, 2);
           log("startConsume: " + startConsume);
         }
       }
-    }
 
-    if (startConsume) {
-      let lightHeal = cleanStringCheckForTargets(lightHealWords, plrText[plr]);
-      let moderateHeal = cleanStringCheckForTargets(moderateHealWords, plrText[plr]);
-      let strongHeal = cleanStringCheckForTargets(strongHealWords, plrText[plr]);
-      let greatHeal = cleanStringCheckForTargets(greatHealWords, plrText[plr]);
-      let powerfulHeal = cleanStringCheckForTargets(powerfulHealWords, plrText[plr]);
 
-      log("healIntensity: " + [lightHeal, moderateHeal, strongHeal, greatHeal, powerfulHeal]);
+      if (startConsume) {
+        let lightHeal = cleanStringCheckForTargets(lightHealWords, plrText[plr]);
+        let moderateHeal = cleanStringCheckForTargets(moderateHealWords, plrText[plr]);
+        let strongHeal = cleanStringCheckForTargets(strongHealWords, plrText[plr]);
+        let greatHeal = cleanStringCheckForTargets(greatHealWords, plrText[plr]);
+        let powerfulHeal = cleanStringCheckForTargets(powerfulHealWords, plrText[plr]);
 
-      if (powerfulHeal) {
-        statUp(plr, "hp", 100);
-        statUp(plr, "ep", 120);
-        consumeFlavorText = toCoOpLang(plr, "You feel restored.");
-      } else if (greatHeal) {
-        statUp(plr, "hp", 50);
-        statUp(plr, "ep", 80);
-        consumeFlavorText = toCoOpLang(plr, "You feel greatly better.");
-      } else if (strongHeal) {
-        statUp(plr, "hp", 30);
-        statUp(plr, "ep", 40);
-        consumeFlavorText = toCoOpLang(plr, "You feel a lot better.");
-      } else if (moderateHeal) {
-        statUp(plr, "hp", 20);
-        statUp(plr, "ep", 30);
-        consumeFlavorText = toCoOpLang(plr, "You feel moderately better.");
-      } else if (lightHeal) {
-        statUp(plr, "hp", 10);
-        statUp(plr, "ep", 10);
-        consumeFlavorText = toCoOpLang(plr, "You feel slightly better.");
-      } else {
-        statUp(plr, "hp", 5);
-        statUp(plr, "ep", 5);
-        consumeFlavorText = toCoOpLang(plr, "You feel a bit better.");
+        log("healIntensity: " + [lightHeal, moderateHeal, strongHeal, greatHeal, powerfulHeal]);
+
+        if (powerfulHeal) {
+          statUp(plr, "hp", 100);
+          statUp(plr, "ep", 120);
+          consumeFlavorText = toCoOpLang(plr, " You feel restored.");
+        } else if (greatHeal) {
+          statUp(plr, "hp", 50);
+          statUp(plr, "ep", 80);
+          consumeFlavorText = toCoOpLang(plr, " You feel greatly better.");
+        } else if (strongHeal) {
+          statUp(plr, "hp", 30);
+          statUp(plr, "ep", 40);
+          consumeFlavorText = toCoOpLang(plr, " You feel a lot better.");
+        } else if (moderateHeal) {
+          statUp(plr, "hp", 20);
+          statUp(plr, "ep", 30);
+          consumeFlavorText = toCoOpLang(plr, " You feel moderately better.");
+        } else if (lightHeal) {
+          statUp(plr, "hp", 10);
+          statUp(plr, "ep", 10);
+          consumeFlavorText = toCoOpLang(plr, " You feel slightly better.");
+        } else {
+          statUp(plr, "hp", 5);
+          statUp(plr, "ep", 5);
+          consumeFlavorText = toCoOpLang(plr, " You feel a bit better.");
+        }
+
+        storeStatsToSC();
       }
 
-      storeStatsToSC();
-    }
-
-    newText += plrText[plr] + consumeFlavorText;
-  });
+      newText += plrText[plr] + consumeFlavorText;
+    });
+  }
 
   return newText !== "" ? newText : text;
 }
@@ -6010,36 +6102,36 @@ function detectConsuming(text) {
 function detectAttack(text) {
   newText = "";
 
-  // Check which players are in the input and store their name and corresponding text
-  result = separateByPlr(text);
-  plrsDetected = Object.keys(result);
-  plrText = {};
-
-  // Store each player's text
-  plrsDetected.forEach(plr => {
-    if (result[plr].length > 0) {
-      plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
-    }
-    else {
-      plrText[plr] = result[plr].join(" ");
+  // Verify player is not dialoguing (case-insensitive)
+  dialogueFlag = true;
+  dialoguePhrases.forEach(phrase => {
+    if (text.toLowerCase().includes(phrase.toLowerCase())) {
+      // Disable check dialoguing exists
+      dialogueFlag = false;
     }
   });
 
-  plrsDetected.forEach(plr => {
-    startAttack = false;
-    attackFlavorText = "";
+  if (dialogueFlag) {
+    // Check which players are in the input and store their name and corresponding text
+    result = separateByPlr(text);
+    plrsDetected = Object.keys(result);
+    plrText = {};
 
-    // Verify player is not dialoguing (case-insensitive)
-    dialogueCheck = true;
-    dialoguePhrases.forEach(phrase => {
-      if (text.toLowerCase().includes(phrase.toLowerCase())) {
-        // Disable check dialoguing exists
-        dialogueCheck = false;
+    // Store each player's text
+    plrsDetected.forEach(plr => {
+      if (result[plr].length > 0) {
+        plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
+      }
+      else {
+        plrText[plr] = result[plr].join(" ");
       }
     });
 
-    // If player is not dialoguing, check input for atk words and split the input
-    if (dialogueCheck == true) {
+    plrsDetected.forEach(plr => {
+      startAttack = false;
+      attackFlavorText = "";
+
+      // Check input for atk words and split the input
       attackTextInput = []
       attackTextInput = findTargetsThenSplit(plrText[plr], attackWords, true);
       log("attackTextInput simplified: " + attackTextInput);
@@ -6056,112 +6148,113 @@ function detectAttack(text) {
           log("startAttack: " + startAttack)
         }
       }
-    }
-
-    if (startAttack) {
-      // Get the player's attack and speed stats
-      plrAtk = state.players[plr].stats.atk;
-      plrSpd = state.players[plr].stats.spd;
-
-      // Define attack strength ranges with corresponding attack messages
-      const atkRanges = [
-        { min: 0, max: 10, atk: attackTier1 },
-        { min: 10, max: 20, atk: attackTier2 },
-        { min: 20, max: 30, atk: attackTier3 },
-        { min: 30, max: 40, atk: attackTier4 },
-        { min: 40, max: 50, atk: attackTier5 },
-        { min: 50, max: 60, atk: attackTier6 },
-        { min: 60, max: 70, atk: attackTier7 },
-        { min: 70, max: 80, atk: attackTier8 },
-        { min: 80, max: 90, atk: attackTier9 },
-        { min: 90, max: Infinity, atk: attackTier10 }
-      ];
 
 
-      // Define speed stat ranges with corresponding speed messages
-      const spdRanges = [
-        { min: 0, max: 10, spd: atkSpdTier1 },
-        { min: 10, max: 20, spd: atkSpdTier2 },
-        { min: 20, max: 30, spd: atkSpdTier3 },
-        { min: 30, max: 40, spd: atkSpdTier4 },
-        { min: 40, max: 50, spd: atkSpdTier5 },
-        { min: 50, max: 60, spd: atkSpdTier6 },
-        { min: 60, max: 70, spd: atkSpdTier7 },
-        { min: 70, max: 80, spd: atkSpdTier8 },
-        { min: 80, max: 90, spd: atkSpdTier9 },
-        { min: 90, max: Infinity, spd: atkSpdTier10 }
-      ];
+      if (startAttack) {
+        // Get the player's attack and speed stats
+        plrAtk = state.players[plr].stats.atk;
+        plrSpd = state.players[plr].stats.spd;
+
+        // Define attack strength ranges with corresponding attack messages
+        const atkRanges = [
+          { min: 0, max: 10, atk: attackTier1 },
+          { min: 10, max: 20, atk: attackTier2 },
+          { min: 20, max: 30, atk: attackTier3 },
+          { min: 30, max: 40, atk: attackTier4 },
+          { min: 40, max: 50, atk: attackTier5 },
+          { min: 50, max: 60, atk: attackTier6 },
+          { min: 60, max: 70, atk: attackTier7 },
+          { min: 70, max: 80, atk: attackTier8 },
+          { min: 80, max: 90, atk: attackTier9 },
+          { min: 90, max: Infinity, atk: attackTier10 }
+        ];
 
 
-      // Calculate energy requirements for attack
-      atkEnergyLoss = (2 * (plrAtk / 10) + randomInt(0, 5)) * -1;
-      if (plrAtk > 100) {
-        atkEnergyLoss = (20 + plrAtk / 25) * -1;
-      }
-      log("Atk energy loss: " + atkEnergyLoss);
+        // Define speed stat ranges with corresponding speed messages
+        const spdRanges = [
+          { min: 0, max: 10, spd: atkSpdTier1 },
+          { min: 10, max: 20, spd: atkSpdTier2 },
+          { min: 20, max: 30, spd: atkSpdTier3 },
+          { min: 30, max: 40, spd: atkSpdTier4 },
+          { min: 40, max: 50, spd: atkSpdTier5 },
+          { min: 50, max: 60, spd: atkSpdTier6 },
+          { min: 60, max: 70, spd: atkSpdTier7 },
+          { min: 70, max: 80, spd: atkSpdTier8 },
+          { min: 80, max: 90, spd: atkSpdTier9 },
+          { min: 90, max: Infinity, spd: atkSpdTier10 }
+        ];
 
-      // Attack energy check defaults to false
-      atkEnergyCheck = false;
-      // If player has enough energy, turn on check
-      if (state.players[plr].stats.ep >= Math.abs(atkEnergyLoss) && state.players[plr].stats.ep >= 0) {
-        atkEnergyCheck = true;
-      }
-      log("atkEnergyCheck: " + atkEnergyCheck);
 
-      // If player does not have enough energy to attack, create flavor text
-      if (!atkEnergyCheck) {
-        attackFlavorText = attackFlavorText + ` ${toCoOpLang(plr, `${realizePhrases[randomInt(0, realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0, notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "energy").replace("[thing]", "your attack")}`)} `
-      }
+        // Calculate energy requirements for attack
+        atkEnergyLoss = (2 * (plrAtk / 10) + randomInt(0, 5)) * -1;
+        if (plrAtk > 100) {
+          atkEnergyLoss = (20 + plrAtk / 25) * -1;
+        }
+        log("Atk energy loss: " + atkEnergyLoss);
 
-      // If player has enough energy to attack, execute the attack
-      if (atkEnergyCheck) {
-        // Check the player's speed range and create a message based on their speed
-        for (let range of spdRanges) {
-          if (plrSpd >= range.min && plrSpd < range.max) {
-            // Append the speed message to the attack text
-            attackFlavorText = attackFlavorText + ` ${toCoOpLang(plr, `${range.spd[randomInt(0, range.spd.length - 1)]}`)} `;
+        // Attack energy check defaults to false
+        atkEnergyCheck = false;
+        // If player has enough energy, turn on check
+        if (state.players[plr].stats.ep >= Math.abs(atkEnergyLoss) && state.players[plr].stats.ep >= 0) {
+          atkEnergyCheck = true;
+        }
+        log("atkEnergyCheck: " + atkEnergyCheck);
 
-            // Attacking grants SPD exp
-            statUp(plr, "spd", randomFloat(0.01, 2));
-            break;
+        // If player does not have enough energy to attack, create flavor text
+        if (!atkEnergyCheck) {
+          attackFlavorText = attackFlavorText + ` ${toCoOpLang(plr, `${realizePhrases[randomInt(0, realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0, notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "energy").replace("[thing]", "your attack")}`)} `
+        }
+
+        // If player has enough energy to attack, execute the attack
+        if (atkEnergyCheck) {
+          // Check the player's speed range and create a message based on their speed
+          for (let range of spdRanges) {
+            if (plrSpd >= range.min && plrSpd < range.max) {
+              // Append the speed message to the attack text
+              attackFlavorText = attackFlavorText + ` ${toCoOpLang(plr, `${range.spd[randomInt(0, range.spd.length - 1)]}`)} `;
+
+              // Attacking grants SPD exp
+              statUp(plr, "spd", randomFloat(0.01, 2));
+              break;
+            }
           }
-        }
 
-        // Check the player's attack range/strength, check energy requirement, and save attack text
-        for (let range of atkRanges) {
-          if (plrAtk >= range.min && plrAtk < range.max) {
-            // Save the attack message based on the attack strength
-            attackFlavorText = attackFlavorText + `and ${toCoOpLang(plr, `${range.atk[randomInt(0, range.atk.length - 1)].toLowerCase()}`)} `;
+          // Check the player's attack range/strength, check energy requirement, and save attack text
+          for (let range of atkRanges) {
+            if (plrAtk >= range.min && plrAtk < range.max) {
+              // Save the attack message based on the attack strength
+              attackFlavorText = attackFlavorText + `and ${toCoOpLang(plr, `${range.atk[randomInt(0, range.atk.length - 1)].toLowerCase()}`)} `;
 
-            // Attacking grants ATK exp
-            statUp(plr, "atk", randomFloat(0.01, 2));
+              // Attacking grants ATK exp
+              statUp(plr, "atk", randomFloat(0.01, 2));
 
-            break;
+              break;
+            }
           }
-        }
 
-        // Apply energy loss from attack
-        statUp(plr, "ep", atkEnergyLoss);
+          // Apply energy loss from attack
+          statUp(plr, "ep", atkEnergyLoss);
 
-        // Determine if the attack has a luck modifier
-        atkLuckRoll = randomInt(1, 100); // Generate a random luck roll between 1 and 100
-        log("atkLuckRoll: " + atkLuckRoll); // Log the luck roll for debugging
+          // Determine if the attack has a luck modifier
+          atkLuckRoll = randomInt(1, 100); // Generate a random luck roll between 1 and 100
+          log("atkLuckRoll: " + atkLuckRoll); // Log the luck roll for debugging
 
-        if (atkLuckRoll <= state.players[plr].stats.lck && atkLuckRoll >= 1) {
-          // If the luck roll is within the player's luck range, append a lucky phrase to the text
-          attackFlavorText = attackFlavorText + ` ${toCoOpLang(plr, `${graspPhrases[randomInt(0, graspPhrases.length - 1)]} ${luckyPhrases[randomInt(0, luckyPhrases.length - 1)]}.`)} `;
+          if (atkLuckRoll <= state.players[plr].stats.lck && atkLuckRoll >= 1) {
+            // If the luck roll is within the player's luck range, append a lucky phrase to the text
+            attackFlavorText = attackFlavorText + ` ${toCoOpLang(plr, `${graspPhrases[randomInt(0, graspPhrases.length - 1)]} ${luckyPhrases[randomInt(0, luckyPhrases.length - 1)]}.`)} `;
 
-          //Grant the player luck exp for using luck
-          statUp(plr, "lck", randomFloat(0.01, 2));
-        }
+            //Grant the player luck exp for using luck
+            statUp(plr, "lck", randomFloat(0.01, 2));
+          }
 
 
-        storeStatsToSC();
-      } // End of has atk energy
-    } // End of startAttack
+          storeStatsToSC();
+        } // End of has atk energy
+      } // End of startAttack
 
-    newText = newText + plrText[plr] + attackFlavorText;
-  });
+      newText = newText + plrText[plr] + attackFlavorText;
+    });
+  }
 
   if (newText == "") {
     return text;
@@ -6389,36 +6482,36 @@ function detectHurt(text) {
 function detectDodge(text) {
   newText = "";
 
-  // Check which players are in the input and store their name and corresponding text
-  result = separateByPlr(text);
-  plrsDetected = Object.keys(result);
-  plrText = {};
-
-  // Store each player's text
-  plrsDetected.forEach(plr => {
-    if (result[plr].length > 0) {
-      plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
-    }
-    else {
-      plrText[plr] = result[plr].join(" ");
+  // Verify player is not dialoguing (case-insensitive)
+  dialogueFlag = true;
+  dialoguePhrases.forEach(phrase => {
+    if (text.toLowerCase().includes(phrase.toLowerCase())) {
+      // Disable check dialoguing exists
+      dialogueFlag = false;
     }
   });
 
-  plrsDetected.forEach(plr => {
-    startDodge = false;
-    dodgeFlavorText = "";
+  if (dialogueFlag) {
+    // Check which players are in the input and store their name and corresponding text
+    result = separateByPlr(text);
+    plrsDetected = Object.keys(result);
+    plrText = {};
 
-    // Verify player is not dialoguing (case-insensitive)
-    dialogueCheck = true;
-    dialoguePhrases.forEach(phrase => {
-      if (text.toLowerCase().includes(phrase.toLowerCase())) {
-        // Disable check dialoguing exists
-        dialogueCheck = false;
+    // Store each player's text
+    plrsDetected.forEach(plr => {
+      if (result[plr].length > 0) {
+        plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
+      }
+      else {
+        plrText[plr] = result[plr].join(" ");
       }
     });
 
-    // If the player is not in dialogue, check if the input contains any dodge-related words
-    if (dialogueCheck == true) {
+    plrsDetected.forEach(plr => {
+      startDodge = false;
+      dodgeFlavorText = "";
+
+      // Check if the input contains any dodge-related words
       dodgeTextInput = [];
 
       // Find all the dodge-related words in the text and split the input accordingly
@@ -6437,83 +6530,84 @@ function detectDodge(text) {
           log("startDodge: " + startDodge)
         }
       }
-    }
-
-    // If the dodge action is triggered (startDodge is true), calculate the player's dodge response based on SPD stat
-    if (startDodge) {
-      plrSpd = state.players[plr].stats.spd;
-
-      // Define SPD stat ranges and corresponding dodge messages
-      const spdRanges = [
-        { min: 0, max: 10, spd: spdTier1 },
-        { min: 10, max: 20, spd: spdTier2 },
-        { min: 20, max: 30, spd: spdTier3 },
-        { min: 30, max: 40, spd: spdTier4 },
-        { min: 40, max: 50, spd: spdTier5 },
-        { min: 50, max: 60, spd: spdTier6 },
-        { min: 60, max: 70, spd: spdTier7 },
-        { min: 70, max: 80, spd: spdTier8 },
-        { min: 80, max: 90, spd: spdTier9 },
-        { min: 90, max: Infinity, spd: spdTier10 }
-      ];
 
 
-      // Calculate energy requirements for dodging
-      dodgeEnergyLoss = (2 * (plrSpd / 10) + randomInt(0, 5)) * -1;
-      if (plrSpd > 100) {
-        dodgeEnergyLoss = (20 + plrSpd / 25) * -1;
-      }
-      log("dodgeEnergyLoss: " + dodgeEnergyLoss);
+      // If the dodge action is triggered (startDodge is true), calculate the player's dodge response based on SPD stat
+      if (startDodge) {
+        plrSpd = state.players[plr].stats.spd;
 
-      // Dodge energy check defaults to false
-      dodgeEnergyCheck = false;
-      // If player has enough energy, turn on check
-      if (state.players[plr].stats.ep >= Math.abs(dodgeEnergyLoss) && state.players[plr].stats.ep >= 0) {
-        dodgeEnergyCheck = true;
-      }
-      log("dodgeEnergyCheck: " + dodgeEnergyCheck);
+        // Define SPD stat ranges and corresponding dodge messages
+        const spdRanges = [
+          { min: 0, max: 10, spd: spdTier1 },
+          { min: 10, max: 20, spd: spdTier2 },
+          { min: 20, max: 30, spd: spdTier3 },
+          { min: 30, max: 40, spd: spdTier4 },
+          { min: 40, max: 50, spd: spdTier5 },
+          { min: 50, max: 60, spd: spdTier6 },
+          { min: 60, max: 70, spd: spdTier7 },
+          { min: 70, max: 80, spd: spdTier8 },
+          { min: 80, max: 90, spd: spdTier9 },
+          { min: 90, max: Infinity, spd: spdTier10 }
+        ];
 
-      // If player doesnt have enough energy to dodge, create flavor text
-      if (dodgeEnergyCheck == false) {
-        dodgeFlavorText = dodgeFlavorText + ` ${toCoOpLang(plr, `${realizePhrases[randomInt(0, realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0, notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "energy").replace("[thing]", "your movement")}`)} `;
-      }
 
-      // If player has enough energy to dodge, execute dodge
-      if (dodgeEnergyCheck) {
-        // Based on the player's SPD stat, select an appropriate dodge message and save dodge text
-        for (let range of spdRanges) {
-          if (plrSpd >= range.min && plrSpd < range.max) {
-            // Save dodge text based on player SPD stat
-            dodgeFlavorText = dodgeFlavorText + ` ${toCoOpLang(plr, `${range.spd[randomInt(0, range.spd.length - 1)]}`)} `;
+        // Calculate energy requirements for dodging
+        dodgeEnergyLoss = (2 * (plrSpd / 10) + randomInt(0, 5)) * -1;
+        if (plrSpd > 100) {
+          dodgeEnergyLoss = (20 + plrSpd / 25) * -1;
+        }
+        log("dodgeEnergyLoss: " + dodgeEnergyLoss);
 
-            break;
+        // Dodge energy check defaults to false
+        dodgeEnergyCheck = false;
+        // If player has enough energy, turn on check
+        if (state.players[plr].stats.ep >= Math.abs(dodgeEnergyLoss) && state.players[plr].stats.ep >= 0) {
+          dodgeEnergyCheck = true;
+        }
+        log("dodgeEnergyCheck: " + dodgeEnergyCheck);
+
+        // If player doesnt have enough energy to dodge, create flavor text
+        if (dodgeEnergyCheck == false) {
+          dodgeFlavorText = dodgeFlavorText + ` ${toCoOpLang(plr, `${realizePhrases[randomInt(0, realizePhrases.length - 1)]} ${notEnoughPhrases[randomInt(0, notEnoughPhrases.length - 1)].toLowerCase().replace("[stat]", "energy").replace("[thing]", "your movement")}`)} `;
+        }
+
+        // If player has enough energy to dodge, execute dodge
+        if (dodgeEnergyCheck) {
+          // Based on the player's SPD stat, select an appropriate dodge message and save dodge text
+          for (let range of spdRanges) {
+            if (plrSpd >= range.min && plrSpd < range.max) {
+              // Save dodge text based on player SPD stat
+              dodgeFlavorText = dodgeFlavorText + ` ${toCoOpLang(plr, `${range.spd[randomInt(0, range.spd.length - 1)]}`)} `;
+
+              break;
+            }
           }
-        }
 
-        // Consume energy for dodging
-        statUp(plr, "ep", dodgeEnergyLoss);
+          // Consume energy for dodging
+          statUp(plr, "ep", dodgeEnergyLoss);
 
-        // Dodging grants SPD stat
-        statUp(plr, "spd", randomFloat(0.01, 2));
+          // Dodging grants SPD stat
+          statUp(plr, "spd", randomFloat(0.01, 2));
 
-        // Check if the player's luck allows for a dodge boost based on their LCK stat
-        dodgeLuckRoll = randomInt(1, 100);
-        log("dodgeLuckRoll: " + dodgeLuckRoll);
+          // Check if the player's luck allows for a dodge boost based on their LCK stat
+          dodgeLuckRoll = randomInt(1, 100);
+          log("dodgeLuckRoll: " + dodgeLuckRoll);
 
-        // If the player's luck stat rolls successfully, append a lucky dodge message
-        if (dodgeLuckRoll <= state.players[plr].stats.lck && dodgeLuckRoll >= 1) {
-          dodgeFlavorText = dodgeFlavorText + `${toCoOpLang(plr, `${graspPhrases[randomInt(0, graspPhrases.length - 1)]} ${luckyPhrases[randomInt(0, luckyPhrases.length - 1)]}.`)} `;
+          // If the player's luck stat rolls successfully, append a lucky dodge message
+          if (dodgeLuckRoll <= state.players[plr].stats.lck && dodgeLuckRoll >= 1) {
+            dodgeFlavorText = dodgeFlavorText + `${toCoOpLang(plr, `${graspPhrases[randomInt(0, graspPhrases.length - 1)]} ${luckyPhrases[randomInt(0, luckyPhrases.length - 1)]}.`)} `;
 
-          // Grant the player luck exp for using luck
-          statUp(plr, "lck", randomFloat(0.01, 2));
-        }
+            // Grant the player luck exp for using luck
+            statUp(plr, "lck", randomFloat(0.01, 2));
+          }
 
-        storeStatsToSC();
-      }// End of dodgeEnergyCheck
-    } // End of startDodge check
+          storeStatsToSC();
+        }// End of dodgeEnergyCheck
+      } // End of startDodge check
 
-    newText = newText + plrText[plr] + dodgeFlavorText;
-  });
+      newText = newText + plrText[plr] + dodgeFlavorText;
+    });
+  }
 
   if (newText == "") {
     return text;
@@ -6527,37 +6621,36 @@ function detectDodge(text) {
 function detectScout(text) {
   newText = "";
 
-  // Check which players are in the input and store their name and corresponding text
-  result = separateByPlr(text);
-  plrsDetected = Object.keys(result);
-  plrText = {};
-
-  // Store each player's text
-  plrsDetected.forEach(plr => {
-    if (result[plr].length > 0) {
-      plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
-    }
-    else {
-      plrText[plr] = result[plr].join(" ");
+  // Verify player is not dialoguing (case-insensitive)
+  dialogueFlag = true;
+  dialoguePhrases.forEach(phrase => {
+    if (text.toLowerCase().includes(phrase.toLowerCase())) {
+      // Disable check dialoguing exists
+      dialogueFlag = false;
     }
   });
 
-  plrsDetected.forEach(plr => {
-    startScout = false;
-    scoutFlavorText = "";
+  if (dialogueFlag) {
+    // Check which players are in the input and store their name and corresponding text
+    result = separateByPlr(text);
+    plrsDetected = Object.keys(result);
+    plrText = {};
 
-
-    // Verify player is not dialoguing (case-insensitive)
-    dialogueCheck = true;
-    dialoguePhrases.forEach(phrase => {
-      if (text.toLowerCase().includes(phrase.toLowerCase())) {
-        // Disable check dialoguing exists
-        dialogueCheck = false;
+    // Store each player's text
+    plrsDetected.forEach(plr => {
+      if (result[plr].length > 0) {
+        plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "");
+      }
+      else {
+        plrText[plr] = result[plr].join(" ");
       }
     });
 
-    // If the player isn't dialoguing, proceed to check for scout-related words
-    if (dialogueCheck == true) {
+    plrsDetected.forEach(plr => {
+      startScout = false;
+      scoutFlavorText = "";
+
+      // Check for scout-related words
       scoutTextInput = [];
 
       // Find scout-related words within the input and split the input accordingly
@@ -6576,56 +6669,56 @@ function detectScout(text) {
           log("startScout: " + startScout)
         }
       }
-    }
 
-    // If the scouting action is triggered (startScout is true), process the INTL stat to provide results
-    if (startScout) {
-      plrIntl = state.players[plr].stats.intl;
 
-      // Define the ranges of INTL stat and the corresponding messages that will be shown to the player
-      const detailRanges = [
-        { min: 0, max: 10, msg: detail1 },
-        { min: 10, max: 20, msg: detail2 },
-        { min: 20, max: 30, msg: detail3 },
-        { min: 30, max: 40, msg: detail4 },
-        { min: 40, max: 50, msg: detail5 },
-        { min: 50, max: 60, msg: detail6 },
-        { min: 60, max: 70, msg: detail7 },
-        { min: 70, max: 80, msg: detail8 },
-        { min: 80, max: 90, msg: detail9 },
-        { min: 90, max: Infinity, msg: detail10 }
-      ];
+      // If the scouting action is triggered (startScout is true), process the INTL stat to provide results
+      if (startScout) {
+        plrIntl = state.players[plr].stats.intl;
 
-      // Iterate through the defined ranges to find the appropriate level of detail based on the player's INTL stat
-      for (let range of detailRanges) {
-        if (plrIntl >= range.min && plrIntl < range.max) {
-          // Add the relevant detail message to the text
-          scoutFlavorText = ` ${toCoOpLang(plr, `${range.msg[randomInt(0, range.msg.length - 1)]}`)} `;
+        // Define the ranges of INTL stat and the corresponding messages that will be shown to the player
+        const detailRanges = [
+          { min: 0, max: 10, msg: detail1 },
+          { min: 10, max: 20, msg: detail2 },
+          { min: 20, max: 30, msg: detail3 },
+          { min: 30, max: 40, msg: detail4 },
+          { min: 40, max: 50, msg: detail5 },
+          { min: 50, max: 60, msg: detail6 },
+          { min: 60, max: 70, msg: detail7 },
+          { min: 70, max: 80, msg: detail8 },
+          { min: 80, max: 90, msg: detail9 },
+          { min: 90, max: Infinity, msg: detail10 }
+        ];
 
-          // Award the player INTL experience for successfully performing a scout action
-          statUp(plr, "intl", randomFloat(0.01, 2));
-          break; // Stop checking once the correct range is found
+        // Iterate through the defined ranges to find the appropriate level of detail based on the player's INTL stat
+        for (let range of detailRanges) {
+          if (plrIntl >= range.min && plrIntl < range.max) {
+            // Add the relevant detail message to the text
+            scoutFlavorText = ` ${toCoOpLang(plr, `${range.msg[randomInt(0, range.msg.length - 1)]}`)} `;
+
+            // Award the player INTL experience for successfully performing a scout action
+            statUp(plr, "intl", randomFloat(0.01, 2));
+            break; // Stop checking once the correct range is found
+          }
         }
-      }
 
-      // Check for the possibility of a lucky scout action based on the player's luck stat
-      scoutLuckRoll = randomInt(1, 100);
-      log("scoutLuckRoll: " + scoutLuckRoll);
+        // Check for the possibility of a lucky scout action based on the player's luck stat
+        scoutLuckRoll = randomInt(1, 100);
+        log("scoutLuckRoll: " + scoutLuckRoll);
 
-      if (scoutLuckRoll <= state.players[plr].stats.lck && scoutLuckRoll >= 1) {
-        // If the luck roll is successful, add a lucky phrase to the result
-        scoutFlavorText = scoutFlavorText + ` ${toCoOpLang(plr, `${graspPhrases[randomInt(0, graspPhrases.length - 1)]} ${luckyPhrases[randomInt(0, luckyPhrases.length - 1)]}.`)} `;
+        if (scoutLuckRoll <= state.players[plr].stats.lck && scoutLuckRoll >= 1) {
+          // If the luck roll is successful, add a lucky phrase to the result
+          scoutFlavorText = scoutFlavorText + ` ${toCoOpLang(plr, `${graspPhrases[randomInt(0, graspPhrases.length - 1)]} ${luckyPhrases[randomInt(0, luckyPhrases.length - 1)]}.`)} `;
 
-        // Grant the player luck exp for using luck
-        statUp(plr, "lck", randomFloat(0.01, 2));
-      }
+          // Grant the player luck exp for using luck
+          statUp(plr, "lck", randomFloat(0.01, 2));
+        }
 
-      storeStatsToSC();
-    } // End of startScout
+        storeStatsToSC();
+      } // End of startScout
 
-    newText = newText + plrText[plr] + scoutFlavorText;
-  });
-
+      newText = newText + plrText[plr] + scoutFlavorText;
+    });
+  }
 
   if (!newText == "") {
     return newText;
@@ -6639,29 +6732,29 @@ function detectScout(text) {
 function detectDefend(text) {
   let newText = "";
 
-  // Check which players are in the input and store their name and corresponding text
-  const result = separateByPlr(text);
-  const plrsDetected = Object.keys(result);
-  const plrText = {};
-
-  plrsDetected.forEach(plr => {
-    plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "").trim();
+  // Verify player is not dialoguing
+  dialogueFlag = true;
+  dialoguePhrases.forEach(phrase => {
+    if (text.toLowerCase().includes(phrase.toLowerCase())) {
+      dialogueFlag = false;
+    }
   });
 
-  plrsDetected.forEach(plr => {
-    let startDefend = false;
-    let defendFlavorText = "";
+  if (dialogueFlag) {
+    // Check which players are in the input and store their name and corresponding text
+    const result = separateByPlr(text);
+    const plrsDetected = Object.keys(result);
+    const plrText = {};
 
-    // Verify player is not dialoguing
-    let dialogueCheck = true;
-    dialoguePhrases.forEach(phrase => {
-      if (text.toLowerCase().includes(phrase.toLowerCase())) {
-        dialogueCheck = false;
-      }
+    plrsDetected.forEach(plr => {
+      plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "").trim();
     });
 
-    // If the player isn't dialoguing, proceed to check for defend-related words
-    if (dialogueCheck == true) {
+    plrsDetected.forEach(plr => {
+      let startDefend = false;
+      let defendFlavorText = "";
+
+      // If the player isn't dialoguing, proceed to check for defend-related words
       defendTextInput = [];
 
       // Find defend-related words within the input and split the input accordingly
@@ -6680,47 +6773,46 @@ function detectDefend(text) {
           log("startDefend: " + startDefend);
         }
       }
-    }
 
-    if (startDefend) {
-      const plrDef = state.players[plr].stats.def;
-      const plrLck = state.players[plr].stats.lck;
+      if (startDefend) {
+        const plrDef = state.players[plr].stats.def;
+        const plrLck = state.players[plr].stats.lck;
 
-      // Define DEF tiers (adjust these ranges as needed)
-      const defendRanges = [
-        { min: 0, max: 10, phrases: defendTiers.tier1 },
-        { min: 10, max: 20, phrases: defendTiers.tier2 },
-        { min: 20, max: 30, phrases: defendTiers.tier3 },
-        { min: 30, max: 40, phrases: defendTiers.tier4 },
-        { min: 40, max: 50, phrases: defendTiers.tier5 },
-        { min: 50, max: 60, phrases: defendTiers.tier6 },
-        { min: 60, max: 70, phrases: defendTiers.tier7 },
-        { min: 70, max: 80, phrases: defendTiers.tier8 },
-        { min: 80, max: 90, phrases: defendTiers.tier9 },
-        { min: 90, max: Infinity, phrases: defendTiers.tier10 }
-      ];
+        // Define DEF tiers (adjust these ranges as needed)
+        const defendRanges = [
+          { min: 0, max: 10, phrases: defendTiers.tier1 },
+          { min: 10, max: 20, phrases: defendTiers.tier2 },
+          { min: 20, max: 30, phrases: defendTiers.tier3 },
+          { min: 30, max: 40, phrases: defendTiers.tier4 },
+          { min: 40, max: 50, phrases: defendTiers.tier5 },
+          { min: 50, max: 60, phrases: defendTiers.tier6 },
+          { min: 60, max: 70, phrases: defendTiers.tier7 },
+          { min: 70, max: 80, phrases: defendTiers.tier8 },
+          { min: 80, max: 90, phrases: defendTiers.tier9 },
+          { min: 90, max: Infinity, phrases: defendTiers.tier10 }
+        ];
 
-      for (const tier of defendRanges) {
-        if (plrDef >= tier.min && plrDef < tier.max) {
-          defendFlavorText = ` ${toCoOpLang(plr, tier.phrases[randomInt(0, tier.phrases.length - 1)])} `;
-          statUp(plr, "def", randomFloat(0.01, 2));
-          break;
+        for (const tier of defendRanges) {
+          if (plrDef >= tier.min && plrDef < tier.max) {
+            defendFlavorText = ` ${toCoOpLang(plr, tier.phrases[randomInt(0, tier.phrases.length - 1)])} `;
+            statUp(plr, "def", randomFloat(0.01, 2));
+            break;
+          }
         }
+
+        // Luck bonus (optional)
+        const luckRoll = randomInt(1, 100);
+        if (luckRoll <= plrLck && luckRoll >= 1) {
+          defendFlavorText += ` ${toCoOpLang(plr, `${graspPhrases[randomInt(0, graspPhrases.length - 1)]} ${luckyPhrases[randomInt(0, luckyPhrases.length - 1)]}.`)}`;
+          statUp(plr, "lck", randomFloat(0.01, 2));
+        }
+
+        storeStatsToSC();
       }
 
-      // Luck bonus (optional)
-      const luckRoll = randomInt(1, 100);
-      if (luckRoll <= plrLck && luckRoll >= 1) {
-        defendFlavorText += ` ${toCoOpLang(plr, `${graspPhrases[randomInt(0, graspPhrases.length - 1)]} ${luckyPhrases[randomInt(0, luckyPhrases.length - 1)]}.`)}`;
-        statUp(plr, "lck", randomFloat(0.01, 2));
-      }
-
-      storeStatsToSC();
-    }
-
-    newText += plrText[plr] + defendFlavorText;
-  });
-
+      newText += plrText[plr] + defendFlavorText;
+    });
+  }
 
   if (!newText == "") {
     return newText;
@@ -6733,31 +6825,31 @@ function detectDefend(text) {
 function detectExercise(text) {
   let newText = "";
 
-  // Check which players are in the input and store their name and corresponding text
-  const result = separateByPlr(text);
-  const plrsDetected = Object.keys(result);
-  const plrText = {};
 
-  plrsDetected.forEach(plr => {
-    plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "").trim();
+  // Verify player is not dialoguing
+  dialogueFlag = true;
+  dialoguePhrases.forEach(phrase => {
+    if (text.toLowerCase().includes(phrase.toLowerCase())) {
+      dialogueFlag = false;
+    }
   });
 
-  plrsDetected.forEach(plr => {
-    let startExercise = false;
-    let isDoing = false;
-    let exerciseFlavorText = "";
+  if (dialogueFlag == true) {
+    // Check which players are in the input and store their name and corresponding text
+    const result = separateByPlr(text);
+    const plrsDetected = Object.keys(result);
+    const plrText = {};
 
-
-    // Verify player is not dialoguing
-    let dialogueCheck = true;
-    dialoguePhrases.forEach(phrase => {
-      if (text.toLowerCase().includes(phrase.toLowerCase())) {
-        dialogueCheck = false;
-      }
+    plrsDetected.forEach(plr => {
+      plrText[plr] = result[plr].join(" ").replace(/(?<!>)>(?!>)/g, "").trim();
     });
 
-    // If the player isn't dialoguing, proceed to check for exercise-related words
-    if (dialogueCheck == true) {
+    plrsDetected.forEach(plr => {
+      let startExercise = false;
+      let isDoing = false;
+      let exerciseFlavorText = "";
+
+      // If the player isn't dialoguing, proceed to check for exercise-related words
       exerciseTextInput = [];
 
       // Find exercise-related words within the input and split the input accordingly
@@ -6778,64 +6870,63 @@ function detectExercise(text) {
           isDoing = cleanStringCheckForTargets(doWords, plrText[plr]);
         }
       }
-    }
 
-    if (isDoing && startExercise) {
-      totalReps = 0;
-      finishedReps = 0;
-      epCost = 0;
-      hpCost = 0;
-      atkGain = 0;
-      defGain = 0;
-      spdGain = 0;
-      maxEpGain = 0;
+      if (isDoing && startExercise) {
+        totalReps = 0;
+        finishedReps = 0;
+        epCost = 0;
+        hpCost = 0;
+        atkGain = 0;
+        defGain = 0;
+        spdGain = 0;
+        maxEpGain = 0;
 
-      allExerciseWordIndices.forEach(exercise => {
-        totalReps += findClosestNumberBefore(exerciseTextInput, exercise) ?? 1;
-      });
-      log("totalReps: " + totalReps);
+        allExerciseWordIndices.forEach(exercise => {
+          totalReps += findClosestNumberBefore(exerciseTextInput, exercise) ?? 1;
+        });
+        log("totalReps: " + totalReps);
 
-      for (let i = 0; i < totalReps; i++) {
-        if (state.players[plr].stats.ep > epCost + 15) {
-          epCost += randomFloat(5, 15);
-          hpCost += randomFloat(0, 0.3);
-          atkGain += randomFloat(0, 0.5);
-          defGain += randomFloat(0, 0.5);
-          spdGain += randomFloat(0, 0.5);
+        for (let i = 0; i < totalReps; i++) {
+          if (state.players[plr].stats.ep > epCost + 15) {
+            epCost += randomFloat(5, 15);
+            hpCost += randomFloat(0, 0.3);
+            atkGain += randomFloat(0, 0.5);
+            defGain += randomFloat(0, 0.5);
+            spdGain += randomFloat(0, 0.5);
 
-          maxEpGain += randomFloat(0, 0.5);
+            maxEpGain += randomFloat(0, 0.5);
 
-          finishedReps = i + 1;
+            finishedReps = i + 1;
 
-          log("epCost: " + epCost);
+            log("epCost: " + epCost);
+          }
+          else {
+            finishedReps = i;
+
+            break;
+          }
         }
-        else {
-          finishedReps = i;
+        log("finishedReps: " + finishedReps);
 
-          break;
-        }
+        statUp(plr, "ep", -1 * epCost);
+        statUp(plr, "hp", -1 * hpCost);
+        statUp(plr, "atk", atkGain);
+        statUp(plr, "def", defGain);
+        statUp(plr, "spd", spdGain);
+
+        state.players[plr].stats.maxEp += maxEpGain;
+        state.players[plr].stats.maxEp = Math.floor(state.players[plr].stats.maxEp * 100) / 100;
+
+
+        storeStatsToSC();
+
+        exerciseFlavorText = toCoOpLang(plr, `${exerciseResultPhrases[randomInt(0, exerciseResultPhrases.length - 1)].replace("[num]", `${finishedReps}`)}`);
+
       }
-      log("finishedReps: " + finishedReps);
 
-      statUp(plr, "ep", -1 * epCost);
-      statUp(plr, "hp", -1 * hpCost);
-      statUp(plr, "atk", atkGain);
-      statUp(plr, "def", defGain);
-      statUp(plr, "spd", spdGain);
-
-      state.players[plr].stats.maxEp += maxEpGain;
-      state.players[plr].stats.maxEp = Math.floor(state.players[plr].stats.maxEp * 100) / 100;
-
-
-      storeStatsToSC();
-
-      exerciseFlavorText = toCoOpLang(plr, `${exerciseResultPhrases[randomInt(0, exerciseResultPhrases.length - 1)].replace("[num]", `${finishedReps}`)}`);
-
-    }
-
-    newText += plrText[plr] + exerciseFlavorText;
-  });
-
+      newText += plrText[plr] + exerciseFlavorText;
+    });
+  }
 
   if (!newText == "") {
     return newText;
