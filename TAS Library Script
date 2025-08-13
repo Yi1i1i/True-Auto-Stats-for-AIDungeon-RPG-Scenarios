@@ -2715,7 +2715,7 @@ function insertAfterWorldLore(text, insertString) {
   const target = "World Lore:\n";
   const index = text.indexOf(target);
   //log("index: " + index);
-  log("insertString: " + insertString);
+  //log("insertString: " + insertString);
 
   if (!text.includes(insertString)) {
     if (index !== -1) {
@@ -2831,10 +2831,10 @@ function feedPlrDataToContext(text) {
 
       // Final save to text
       if (!onePlayerFlagger()) {
-        text = insertAfterWorldLore(text, `Assume ${plr} inventory has only ${allItems}. ${plr} talents are only ${allTalents}. ${plr} skills are only ${allSkills}. ${plr} ${statText}\n`);
+        text = insertAfterWorldLore(text, `[Assume ${plr} inventory has only ${allItems}. ${plr} talents are only ${allTalents}. ${plr} skills are only ${allSkills}. ${plr} ${statText}]\n`);
       }
       else {
-        text = insertAfterWorldLore(text, `Assume player inventory has only ${allItems}. Player talents are only ${allTalents}. Player skills are only ${allSkills}. Player ${statText}\n`);
+        text = insertAfterWorldLore(text, `[Assume player inventory has only ${allItems}. Player talents are only ${allTalents}. Player skills are only ${allSkills}. Player ${statText}]\n`);
       }
     });
   }
@@ -4589,7 +4589,7 @@ function detectGiving(text) {
 function feedInvToContext(text) {
   if (state.unlockInvToContext) {
     text = text + state.invCheckText;
-    log("state.invCheckText: " + state.invCheckText);
+    //log("state.invCheckText: " + state.invCheckText);
 
     state.invCheckText = "";
   }
@@ -4664,7 +4664,13 @@ function retrieveTalentsFromSC() {
       // Third, talent cost to number
       costHolder.push(Number(match[3]));
       // Fourth, talent keys
-      keysHolder.push(match[4].trim() ?? "");
+      if(match[4]){
+        keysHolder.push(match[4].trim() ?? "");
+      }
+      else{
+        keysHolder.push(match[4] ?? "");
+      }
+      
     }
 
     // Finally store to code base
@@ -5459,7 +5465,7 @@ function detectHeal(plr, strgType, index) {
 function feedStrgToContext(text) {
   if (state.unlockStrgToContext) {
     text = text + state.strgCheckText;
-    log("state.strgCheckText: " + state.strgCheckText);
+    //log("state.strgCheckText: " + state.strgCheckText);
 
     state.strgCheckText = "";
   }
