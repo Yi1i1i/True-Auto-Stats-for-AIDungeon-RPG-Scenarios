@@ -1375,6 +1375,20 @@ const intensityTier = [
   'Godly level'
 ];
 
+const capacityTier = [
+  "Empty",
+  "Nearly Empty",
+  "Quarter Full",
+  "One Thirds Full",
+  "Slightly Below Half",
+  "Half",
+  "Slightly Above Half",
+  "Three Quarters Full",
+  "Mostly Full",
+  "Nearly Full",
+  "Full"
+];
+
 const skillPower1 = [
   "[Skill], amateurish.",
   "[Skill], tentative and raw.",
@@ -2715,7 +2729,7 @@ function insertAfterWorldLore(text, insertString) {
   const target = "World Lore:\n";
   const index = text.indexOf(target);
   //log("index: " + index);
-  //log("insertString: " + insertString);
+  log("insertString: " + insertString);
 
   if (!text.includes(insertString)) {
     if (index !== -1) {
@@ -2810,26 +2824,27 @@ function feedPlrDataToContext(text) {
       // Get all plr stats
       statKeys.forEach(key => {
         statAmt = state.players[plr].stats[key];
+        maxStatAmt = state.players[plr].stats[`max${capitalizeFirst(key)}`];
 
         // Scaling fix for tiers
-        if (key == "hp") {
-          statAmt = statAmt / 10;
-        }
-        if (key == "ep") {
-          statAmt = statAmt / 10;
-        }
-        if (key == "mp") {
-          statAmt = statAmt / 10;
-        }
+        if (key == "hp" || key == "ep" || key == "mp") {
+          statTier = getTier(statAmt/10);
+          capTier = getCapacityTier(statAmt,maxStatAmt);
 
-        statTier = getTier(statAmt);
-        allStats.push(`${statTier}`);
+          allStats.push(`${statAmt} (${capTier}) / ${maxStatAmt} (${statTier})`);
+        }
+        else{
+          statTier = getTier(statAmt);
+          allStats.push(`${statTier} (${statAmt}/${maxStatAmt})`);
+        }
       });
+
+      // Create stat text
       if (allStats.length > 0) {
-        statText = `is ${allStats[0]}, has ${allStats[1]} health, ${allStats[2]} mana, ${allStats[3]} energy, ${allStats[4]} strength, ${allStats[5]} defense, ${allStats[6]} speed, ${allStats[7]} luck, ${allStats[8]} intelligence.`
+        statText = `is ${state.players[plr].race}, ${state.players[plr].class_}, Level ${state.players[plr].stats.maxLvl} (${getTier(state.players[plr].stats.maxLvl)}), has ${allStats[1]} health, ${allStats[2]} mana, ${allStats[3]} energy, ${allStats[4]} attack, ${allStats[5]} defense, ${allStats[6]} speed, ${allStats[7]} luck, ${allStats[8]} intelligence.`
       }
 
-      // Final save to text
+      // Combine all plr data text for final return
       if (!onePlayerFlagger()) {
         text = insertAfterWorldLore(text, `[Assume ${plr} inventory has only ${allItems}. ${plr} talents are only ${allTalents}. ${plr} skills are only ${allSkills}. ${plr} ${statText}]\n`);
       }
@@ -4664,13 +4679,13 @@ function retrieveTalentsFromSC() {
       // Third, talent cost to number
       costHolder.push(Number(match[3]));
       // Fourth, talent keys
-      if(match[4]){
+      if (match[4]) {
         keysHolder.push(match[4].trim() ?? "");
       }
-      else{
+      else {
         keysHolder.push(match[4] ?? "");
       }
-      
+
     }
 
     // Finally store to code base
@@ -5211,9 +5226,9 @@ function rewardSkillForLevelUp(text) {
 
         skillRewardText += toCoOpLang(plr, ` ${skillAcquisitionPhrases[randomInt(0, skillAcquisitionPhrases.length - 1)].replace("[Skill]", learnedSkills)}`);
       }
-      
+
       // If player has edited their lvl to below tracked lvl, update tracked lvl
-      if(plrLvl < state.oldLvlHolder[plr]){
+      if (plrLvl < state.oldLvlHolder[plr]) {
         state.oldLvlHolder[plr] = plrLvl;
       }
 
@@ -5229,30 +5244,33 @@ function rewardSkillForLevelUp(text) {
 
 // Converts talents that are casted into a skill by detecting if closest action word of talent is a cast word
 function talentCastedToSkill(plr, wordsArr, talentIndex, actionWordIndices) {
-  // Get index of talent from input
-  let i_talentInput = indexOfStr(state.players[plr].talents.name[talentIndex], wordsArr);
-  //log('i_talentInput: ' + i_talentInput);
+  // Ensure talent exists in case player turns same talent to skill multiple times
+  if (state.players[plr].talents.name[talentIndex]) {
+    // Get index of talent from input
+    let i_talentInput = indexOfStr(state.players[plr].talents.name[talentIndex], wordsArr);
+    //log('i_talentInput: ' + i_talentInput);
 
-  // After get index check if closest action word is a cast word
-  if (i_talentInput >= 0) {
-    let closestIndex = closestIndexBeforeTarget(actionWordIndices, i_talentInput);
-    //log('closestIndex: ' + closestIndex);
+    // After get index check if closest action word is a cast word
+    if (i_talentInput >= 0) {
+      let closestIndex = closestIndexBeforeTarget(actionWordIndices, i_talentInput);
+      //log('closestIndex: ' + closestIndex);
 
-    // Turn talent to skill if closest action word is a cast word
-    if (castWords.includes(wordsArr[closestIndex].toLowerCase())) {
-      state.players[plr].skills.name.push(state.players[plr].talents.name[talentIndex]);
-      state.players[plr].skills.lvl.push(state.players[plr].talents.lvl[talentIndex]);
-      state.players[plr].skills.cost.push(state.players[plr].talents.cost[talentIndex]);
+      // Turn talent to skill if closest action word is a cast word
+      if (castWords.includes(wordsArr[closestIndex].toLowerCase())) {
+        state.players[plr].skills.name.push(state.players[plr].talents.name[talentIndex]);
+        state.players[plr].skills.lvl.push(state.players[plr].talents.lvl[talentIndex]);
+        state.players[plr].skills.cost.push(state.players[plr].talents.cost[talentIndex]);
 
-      state.players[plr].talents.name.splice(talentIndex, 1);
-      state.players[plr].talents.lvl.splice(talentIndex, 1);
-      state.players[plr].talents.cost.splice(talentIndex, 1);
-      state.players[plr].talents.keys.splice(talentIndex, 1);
+        state.players[plr].talents.name.splice(talentIndex, 1);
+        state.players[plr].talents.lvl.splice(talentIndex, 1);
+        state.players[plr].talents.cost.splice(talentIndex, 1);
+        state.players[plr].talents.keys.splice(talentIndex, 1);
 
 
 
-      storeTalentsToSC();
-      storeSkillsToSC();
+        storeTalentsToSC();
+        storeSkillsToSC();
+      }
     }
   }
 }
@@ -5261,73 +5279,79 @@ function talentCastedToSkill(plr, wordsArr, talentIndex, actionWordIndices) {
 // Creates a partial or full talent use flavor text
 function executeTalent(plr, fullTalentFlag, index) {
   talentFlavorText = "";
-  energyCost = state.players[plr].talents.cost[index];
 
-  // Subtract ep cost from player ep
-  statUp(plr, "ep", -1 * energyCost);
-  storeStatsToSC();
+  // Ensure talent exists
+  if (state.players[plr].talents.name[index]) {
 
-  // Using talents boost stats
-  statUp(plr, "intl", randomFloat(0.01, 2));
-  storeStatsToSC();
+    energyCost = state.players[plr].talents.cost[index];
 
-  // Override normal skill text if healing skill
-  healResult = detectHeal(plr, "talent", index);
-  if (healResult[0]) {
-    talentFlavorText = ` ${healResult[1]}`;
-  }
-  else {
-    // Create flavor text if FULL talent
-    if (fullTalentFlag) {
-      // Define the ranges of talent effectiveness and the corresponding talent power messages
-      const talentPowerRanges = [
-        { min: 0, max: 10, msg: talentPower1 },
-        { min: 10, max: 20, msg: talentPower2 },
-        { min: 20, max: 30, msg: talentPower3 },
-        { min: 30, max: 40, msg: talentPower4 },
-        { min: 40, max: 50, msg: talentPower5 },
-        { min: 50, max: 60, msg: talentPower6 },
-        { min: 60, max: 70, msg: talentPower7 },
-        { min: 70, max: 80, msg: talentPower8 },
-        { min: 80, max: 90, msg: talentPower9 },
-        { min: 90, max: Infinity, msg: talentPower10 }
-      ];
+    // Subtract ep cost from player ep
+    statUp(plr, "ep", -1 * energyCost);
+    storeStatsToSC();
 
-      // Create talent flavor text
-      talentLevel = state.players[plr].talents.lvl[index];
+    // Using talents boost stats
+    statUp(plr, "intl", randomFloat(0.01, 2));
+    storeStatsToSC();
 
-      for (let range of talentPowerRanges) {
-        if (talentLevel >= range.min && talentLevel < range.max) {
-          talentFlavorText = ` ${range.msg[randomInt(0, range.msg.length - 1)].replace("[Talent]", state.players[plr].talents.name[index])}`;
-          break;
+    // Override normal skill text if healing skill
+    healResult = detectHeal(plr, "talent", index);
+    if (healResult[0]) {
+      talentFlavorText = ` ${healResult[1]}`;
+    }
+    else {
+      // Create flavor text if FULL talent
+      if (fullTalentFlag) {
+        // Define the ranges of talent effectiveness and the corresponding talent power messages
+        const talentPowerRanges = [
+          { min: 0, max: 10, msg: talentPower1 },
+          { min: 10, max: 20, msg: talentPower2 },
+          { min: 20, max: 30, msg: talentPower3 },
+          { min: 30, max: 40, msg: talentPower4 },
+          { min: 40, max: 50, msg: talentPower5 },
+          { min: 50, max: 60, msg: talentPower6 },
+          { min: 60, max: 70, msg: talentPower7 },
+          { min: 70, max: 80, msg: talentPower8 },
+          { min: 80, max: 90, msg: talentPower9 },
+          { min: 90, max: Infinity, msg: talentPower10 }
+        ];
+
+        // Create talent flavor text
+        talentLevel = state.players[plr].talents.lvl[index];
+
+        for (let range of talentPowerRanges) {
+          if (talentLevel >= range.min && talentLevel < range.max) {
+            talentFlavorText = ` ${range.msg[randomInt(0, range.msg.length - 1)].replace("[Talent]", state.players[plr].talents.name[index])}`;
+            break;
+          }
         }
       }
+      // Create flavor text for PARTIAL talent
+      else {
+        talentFlavorText = ` You attempt to harness your existing ${state.players[plr].talents.name[index]} talent.`
+      }
     }
-    // Create flavor text for PARTIAL talent
-    else {
-      talentFlavorText = ` You attempt to harness your existing ${state.players[plr].talents.name[index]} talent.`
-    }
+
+    // Save current as old talent lvl for logging
+    oldTalentLvl = state.players[plr].talents.lvl[index];
+
+    // Using talents grants talent exp
+    talentExp = randomFloat(0, 0.8);
+    log("talentExp: " + talentExp);
+
+    // Increase the talent's level by the generated experience
+    state.players[plr].talents.lvl[index] += talentExp;
+
+    // Round the talent level to two decimal places
+    state.players[plr].talents.lvl[index] = Math.round(state.players[plr].talents.lvl[index] * 100) / 100;
+
+    // Log talent lvl change in talent sc notes
+    const talentSC = storyCards.find(sc => sc.title === `${plr} Talents`);
+    talentSC.description = `Log ${state.turnCount} | ${state.players[plr].talents.name[index]} gained ${talentExp.toFixed(2)} lvl. Lvl ${oldTalentLvl} => ${state.players[plr].talents.lvl[index]}\n` + talentSC.description;
+
+    // Save the updated talent data to the storage container
+    storeTalentsToSC();
+
   }
-
-  // Save current as old talent lvl for logging
-  oldTalentLvl = state.players[plr].talents.lvl[index];
-
-  // Using talents grants talent exp
-  talentExp = randomFloat(0, 0.8);
-  log("talentExp: " + talentExp);
-
-  // Increase the talent's level by the generated experience
-  state.players[plr].talents.lvl[index] += talentExp;
-
-  // Round the talent level to two decimal places
-  state.players[plr].talents.lvl[index] = Math.round(state.players[plr].talents.lvl[index] * 100) / 100;
-
-  // Log talent lvl change in talent sc notes
-  const talentSC = storyCards.find(sc => sc.title === `${plr} Talents`);
-  talentSC.description = `Log ${state.turnCount} | ${state.players[plr].talents.name[index]} gained ${talentExp.toFixed(2)} lvl. Lvl ${oldTalentLvl} => ${state.players[plr].talents.lvl[index]}\n` + talentSC.description;
-
-  // Save the updated talent data to the storage container
-  storeTalentsToSC();
 
   return talentFlavorText;
 }
@@ -5490,6 +5514,19 @@ function getTier(number) {
   }
 }
 
+function getCapacityTier(part, whole) {
+  toTier = Math.floor((part / whole * 100) / 10);
+
+  if (toTier < capacityTier.length) {
+    return capacityTier[toTier];
+  }
+  if (number < 0) {
+    return `Below Empty`
+  }
+  else {
+    return capacityTier[10];
+  }
+}
 
 // Checks for "you + actions" that require items, talents, or skills. Checks if player has something to fulfill it and executes result along with text result
 function detectStorageCallActions(text) {
