@@ -3147,6 +3147,17 @@ const raceMods = {
     lckMod: 50,
     intlMod: 50
   },
+  demigod: {
+    lvlMod: 35,
+    hpMod: 35,
+    mpMod: 35,
+    epMod: 35,
+    atkMod: 35,
+    defMod: 35,
+    spdMod: 35,
+    lckMod: 35,
+    intlMod: 35
+  },
   yokai: {
     lvlMod: 5,
     hpMod: 0,
