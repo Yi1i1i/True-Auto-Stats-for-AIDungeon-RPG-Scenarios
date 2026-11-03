@@ -2,8 +2,8 @@
 
 // Every script needs a modifier function
 const modifier = (text) => {
-  text = onContext_TAS(text);
- 
+  text = OnContext_TAS(text);
+      
   return { text }
 }
 
